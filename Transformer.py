@@ -11,22 +11,27 @@ class Transformer:
         self.impedance_percent = impedance_percent
         self.x_over_r_ratio = x_over_r_ratio
 
-        # init calculated attributes
-        self.zt = self.calc_impedance()
-        self.yt = 1 / self.zt if self.zt != 0 else 0
-        self.y_prim = self.calc_y_prim()
+        # calculate the impedance and admittance values
+        self.impedance = self.calc_impedance()
+        self.admittance = self.calc_admittance()
 
     def calc_impedance(self):
-        # calculate the impedance angle
-        theta = np.arctan(self.x_over_r_ratio)
-        z_base = self.impedance_percent / 100 * np.exp(1j * theta)
-        return z_base
+        # calculate the impedance of the transformer
+        base_impedance = 100  # assume 100 MVA system base
+        z_base = base_impedance / self.power_rating
+        r = z_base * self.impedance_percent / (100 * np.sqrt(1 + self.x_over_r_ratio ** 2))
+        x = r * self.x_over_r_ratio
+        return complex(r, x)
+
+    def calc_admittance(self):
+        if self.impedance == 0:
+            return complex(0, 0)
+        return 1 / self.impedance
 
     def calc_y_prim(self):
-        ypu = self.yt
-        # 2x2 admittance matrix for the transformer
-        y_prim_matrix = np.array([
-            [ypu, -ypu],
-            [-ypu, ypu]
+        y_prim = np.array([
+            [self.admittance, -self.admittance],
+            [-self.admittance, self.admittance]
         ])
-        return y_prim_matrix
+        return y_prim
+
