@@ -20,9 +20,7 @@ class Transformer:
         self.yprim = self.calc_yprim()
 
     def calc_impedance(self):
-        """
-        Calculate the per-unit impedance values for the transformer.
-        """
+        
         base_impedance = 100  # Assume 100 MVA system base
         z_base = base_impedance / self.power_rating
 
@@ -32,18 +30,14 @@ class Transformer:
         return r_pu, x_pu
 
     def calc_admittance(self):
-        """
-        Compute the series admittance in per-unit.
-        """
+
         z_pu = complex(self.Rpusys, self.Xpusys)
         if z_pu == 0:
             return complex(0, 0)
         return 1 / z_pu
 
     def calc_yprim(self):
-        """
-        Compute the primitive admittance matrix for the transformer.
-        """
+
         yprim = np.array([
             [self.Yseries, -self.Yseries],
             [-self.Yseries, self.Yseries]
