@@ -1,13 +1,15 @@
-# Cece Espadas
-# 2-2-25
-# ECE 2774: Project 2
-# Transmission Line Subclass
+# Group 8 - Project 2
+# ECE 2774
+# Milestone 1
 
 import math
+import numpy as np
+import pandas as pd
 from Conductor import Conductor
 from Bundle import Bundle
 from Geometry import Geometry
 from Bus import Bus
+from Global import Global
 
 class TransmissionLine:
 
@@ -21,60 +23,77 @@ class TransmissionLine:
 
         self.zbase, self.ybase = self.calc_base_values()
 
-        self.zseries, self.yshunt, self.yseries = self.calc_admittances()
+        self.Rpu = self.calc_Rpu()
+        self.Xpu = self.calc_Xpu()
+        self.Bpu = self.calc_Bpu()
 
-        self.yprim = self.calc_admittance_matrix()
+        self.yprim = self.calc_yprim()
 
     def calc_base_values(self):
 
         Vbase = self.bus2.base_kv  # [kv] same kV for each
-        Sbase = 100 # [MVA] # should this be assumed or no
-
+        Sbase = Global.Sbase # [MVA]
         #create a new class, Settings, global variables, freq, Sbase, parameters
 
         zbase = Vbase ** 2 / Sbase
         ybase = 1 / zbase
         return zbase, ybase
 
-    def calc_admittances(self):
-        # calculates the series impedance, shunt admittance, and series admittance
+    def calc_Rpu(self):
+
+        # resistance(Ω)
+        Rseries = self.length * (self.bundle.conductor.resistance)/(self.bundle.num_conductors)
+
+        Rpu = Rseries/self.zbase
+
+        return Rpu
+
+    def calc_Xpu(self):
 
         dsl = self.bundle.dsl  # DSL for series impedance calculation
+        Deq = self.geometry.Deq  # equivalent conductor spacing
+
+        f = Global.f  # Frequency in Hz
+
+        # inductive reactance(Ω)
+        Xseries = self.length * (2 * math.pi * f) * (2 * 10 ** -7) * (1609.34) * math.log(Deq / dsl)
+
+        Xpu = Xseries/self.zbase
+
+        return Xpu
+
+    def calc_Bpu(self):
         dsc = self.bundle.dsc  # DSC for shunt susceptance calculation
         Deq = self.geometry.Deq  # equivalent conductor spacing
 
-        f = 60  # Frequency in Hz
-        ε_0 = 8.854 * 10 ** -12  # permittivity of free space (F/m)
+        f = Global.f  # Frequency in Hz
+        ε_0 = Global.ε_0  # permittivity of free space (F/m)
 
-        # resistance per unit length (Ω/mi)
-        Rseries = (self.bundle.conductor.resistance)/(self.bundle.num_conductors)
+        # shunt susceptance per unit length (S)
+        B = self.length * (2 * math.pi * ε_0) * (2 * math.pi * f) * (1609.34) / math.log(Deq / dsc)
 
-        # inductive reactance per unit length (Ω/mi)
-        Xseries = (2 * math.pi * f) * (2 * 10 ** -7) * (1609.34) * math.log(Deq / dsl)
+        Bpu = B / self.ybase
 
-        # conductance per unit length (S/mi)
-        G = 0
+        return Bpu
 
-        # shunt susceptance per unit length (S/mi)
-        B = (2 * math.pi * ε_0) * (2 * math.pi * f) * (1609.34) / math.log(Deq / dsc)
 
-        # convert to per-unit values
-        zseries = complex(Rseries, Xseries) / self.zbase
-        yseries = 1/zseries
-
-        yshunt = complex(G, B) / self.ybase
-
-        return zseries, yshunt, yseries
-
-    def calc_admittance_matrix(self):
+    def calc_yprim(self):
         # calculates the primitive admittance matrix (yprim)
 
-        Z = self.zseries * self.length  # Total series impedance
-        Y = self.yshunt * self.length  # Total shunt admittance
+        G = 0
+
+        zseries = complex(self.Rpu, self.Xpu)
+        yseries = 1/zseries
+
+        yshunt = complex(G, self.Bpu) / self.ybase
 
         # Primitive admittance matrix (2x2 for a single line)
-        Y_prim = [[(1 / Z) + Y / 2, -1 / Z],
-                  [-1 / Z, (1 / Z) + Y / 2]]
+        Y_prim = pd.DataFrame(
+            [[yseries + yshunt / 2, -1*yseries],
+             [-1*yseries, yseries + yshunt/ 2]],
+            index=[self.bus1.name, self.bus2.name],
+            columns=[self.bus1.name, self.bus2.name]
+        )
 
         return Y_prim
 
@@ -95,4 +114,6 @@ if __name__ == "__main__":
 
     print(line1.zbase, line1.ybase)
 
-    print(line1.zseries, line1.yshunt, line1.yseries)
+    print(line1.Rpu, line1.Xpu, line1.Bpu)
+
+    print(line1.yprim)
