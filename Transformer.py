@@ -23,20 +23,16 @@ class Transformer:
 
     def calc_impedance(self):
 
-        base_impedance = 100  # Assume 100 MVA system base
-        z_base = base_impedance / self.power_rating
+        Sbase = 100  # Assume 100 MVA system base
 
         # Calculate per-unit resistance and reactance
-        r_pu = z_base * self.impedance_percent / (100 * np.sqrt(1 + self.x_over_r_ratio ** 2))
-        x_pu = r_pu * self.x_over_r_ratio
+        z_pu = (Sbase / self.power_rating) * (self.impedance_percent / 100 ) * np.exp(1j * np.arctan(self.x_over_r_ratio))
+        r_pu = np.real(z_pu)
+        x_pu = np.imag(z_pu)
         return r_pu, x_pu
 
     def calc_admittance(self):
-
-        z_pu = complex(self.Rpusys, self.Xpusys)
-        if z_pu == 0:
-            return complex(0, 0)
-        return 1 / z_pu
+        return 1 / (self.Rpusys + 1j * self.Xpusys)
 
     def calc_yprim(self):
 
@@ -54,7 +50,7 @@ if __name__ == "__main__":
     bus1 = Bus("Bus1", 20)
     bus2 = Bus("Bus2",230)
 
-    transformer1 = Transformer("T1", bus1, bus2, 125, 8.5, 10)
+    transformer1 = Transformer("T1", bus1, bus2, 100, 8.5, 10)
 
     print("Transformer Name:", transformer1.name)
     print("Connected Buses:", transformer1.bus1, "<-->", transformer1.bus2)
