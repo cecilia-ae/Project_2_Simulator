@@ -1,7 +1,6 @@
-# Cece Espadas
-# 1-30-25
-# ECE 2774: Project 2
-# Conductor Subclass
+# Group 8 - Project 2
+# ECE 2774
+# Milestone 1
 
 class Conductor:
 

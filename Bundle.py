@@ -1,7 +1,6 @@
-# Cece Espadas
-# 1-30-25
-# ECE 2774: Project 2
-# Bundle Subclass
+# Group 8 - Project 2
+# ECE 2774
+# Milestone 1
 
 import math as math
 from Conductor import Conductor
@@ -29,7 +28,7 @@ class Bundle:
             elif N == 3:
                 return (GMR_c * d ** 2) ** (1 / 3)
             elif N == 4:
-                return 1.091 * (GMR_c * d ** 4) ** (1 / 4)
+                return 1.091 * (GMR_c * d ** 3) ** (1 / 4)
             else:
                 raise ValueError("Cannot calculate DSL for N > 4")
 
@@ -46,7 +45,7 @@ class Bundle:
             elif N == 3:
                 return (r_c * d ** 2) ** (1 / 3)
             elif N == 4:
-                return 1.091 * (r_c * d ** 4) ** (1 / 4)
+                return 1.091 * (r_c * d ** 3) ** (1 / 4)
             else:
                 raise ValueError("Cannot calculate DSC for N > 4")
 

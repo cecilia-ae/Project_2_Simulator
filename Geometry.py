@@ -1,7 +1,6 @@
-# Cece Espadas
-# 1-31-25
-# ECE 2774: Project 2
-# Geometry Subclass
+# Group 8 - Project 2
+# ECE 2774
+# Milestone 1
 
 import math
 

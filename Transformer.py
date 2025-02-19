@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 from Bus import Bus
+from Global import Global
 
 class Transformer:
 
@@ -23,7 +24,7 @@ class Transformer:
 
     def calc_impedance(self):
 
-        Sbase = 100  # Assume 100 MVA system base
+        Sbase = Global.Sbase # Assume 100 MVA system base
 
         # Calculate per-unit resistance and reactance
         z_pu = (Sbase / self.power_rating) * (self.impedance_percent / 100 ) * np.exp(1j * np.arctan(self.x_over_r_ratio))

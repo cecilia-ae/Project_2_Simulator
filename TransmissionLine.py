@@ -85,7 +85,7 @@ class TransmissionLine:
         zseries = complex(self.Rpu, self.Xpu)
         yseries = 1/zseries
 
-        yshunt = complex(G, self.Bpu) / self.ybase
+        yshunt = complex(G, self.Bpu)
 
         # Primitive admittance matrix (2x2 for a single line)
         Y_prim = pd.DataFrame(
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     bus1 = Bus("Bus 1", 230)
     bus2 = Bus("Bus 2", 230)
 
-    line1 = TransmissionLine("Line 1", bus1, bus2, bundle1, geometry1, 10)
+    line1 = TransmissionLine("Line 1", bus1, bus2, bundle1, geometry1, 100)
 
     print(line1.name, line1.bus1.name, line1.bus2.name, line1.length)
 
