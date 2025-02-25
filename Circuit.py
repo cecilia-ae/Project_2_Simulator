@@ -152,7 +152,7 @@ if __name__ == "__main__":
         circuit1.add_bus("Bus4", 230, 1, 0 ,"PV Bus")
         circuit1.add_bus("Bus5", 230, 1, 0 ,"PV Bus")
         circuit1.add_bus("Bus6", 230, 1, 0 ,"PV Bus")
-        circuit1.add_bus("Bus7", 230, 1, 0 ,"PV Bus")
+        circuit1.add_bus("Bus7", 230, 1, 0 ,"PQ Bus")
 
         # ADD TRANSMISSION LINES
         circuit1.add_conductor("Partridge", 0.642, 0.0217, 0.385, 460)
