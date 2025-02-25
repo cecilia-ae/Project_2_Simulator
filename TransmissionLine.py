@@ -9,7 +9,7 @@ from Conductor import Conductor
 from Bundle import Bundle
 from Geometry import Geometry
 from Bus import Bus
-from Global import Global
+from SystemSettings import SystemSettings
 
 class TransmissionLine:
 
@@ -32,7 +32,7 @@ class TransmissionLine:
     def calc_base_values(self):
 
         Vbase = self.bus2.base_kv  # [kv] same kV for each
-        Sbase = Global.Sbase # [MVA]
+        Sbase = SystemSettings.Sbase # [MVA]
         #create a new class, Settings, global variables, freq, Sbase, parameters
 
         zbase = Vbase ** 2 / Sbase
@@ -53,7 +53,7 @@ class TransmissionLine:
         dsl = self.bundle.dsl  # DSL for series impedance calculation
         Deq = self.geometry.Deq  # equivalent conductor spacing
 
-        f = Global.f  # Frequency in Hz
+        f = SystemSettings.f  # Frequency in Hz
 
         # inductive reactance(Ω)
         Xseries = self.length * (2 * math.pi * f) * (2 * 10 ** -7) * (1609.34) * math.log(Deq / dsl)
@@ -66,8 +66,8 @@ class TransmissionLine:
         dsc = self.bundle.dsc  # DSC for shunt susceptance calculation
         Deq = self.geometry.Deq  # equivalent conductor spacing
 
-        f = Global.f  # Frequency in Hz
-        ε_0 = Global.ε_0  # permittivity of free space (F/m)
+        f = SystemSettings.f  # Frequency in Hz
+        ε_0 = SystemSettings.ε_0  # permittivity of free space (F/m)
 
         # shunt susceptance per unit length (S)
         B = self.length * (2 * math.pi * ε_0) * (2 * math.pi * f) * (1609.34) / math.log(Deq / dsc)
