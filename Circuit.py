@@ -30,13 +30,13 @@ class Circuit:
 
         self.ybus = self.calc_ybus()
 
-    def add_bus(self, bus: str, base_kv: float):
+    def add_bus(self, bus: str, base_kv: float, vpu: float, delta: float, bus_type: str):
 
         # add a bus to the circuit
 
         if bus in self.buses:
             raise ValueError(f"Bus '{bus}' already exists.")
-        self.buses[bus] = Bus(bus, base_kv)
+        self.buses[bus] = Bus(bus, base_kv, vpu, delta, bus_type)
 
     def add_transformer(self, name: str, bus1_name: str, bus2_name: str, power_rating: float,
                         impedance_percent: float, x_over_r_ratio: float):
@@ -146,13 +146,13 @@ if __name__ == "__main__":
         circuit1 = Circuit("Test Circuit")
 
         # ADD BUSES
-        circuit1.add_bus("Bus1", 230)
-        circuit1.add_bus("Bus2", 230)
-        circuit1.add_bus("Bus3", 230)
-        circuit1.add_bus("Bus4", 230)
-        circuit1.add_bus("Bus5", 230)
-        circuit1.add_bus("Bus6", 230)
-        circuit1.add_bus("Bus7", 230)
+        circuit1.add_bus("Bus1", 230, 1, 0 ,"Slack Bus")
+        circuit1.add_bus("Bus2", 230, 1, 0 ,"PV Bus")
+        circuit1.add_bus("Bus3", 230, 1, 0 ,"PV Bus")
+        circuit1.add_bus("Bus4", 230, 1, 0 ,"PV Bus")
+        circuit1.add_bus("Bus5", 230, 1, 0 ,"PV Bus")
+        circuit1.add_bus("Bus6", 230, 1, 0 ,"PV Bus")
+        circuit1.add_bus("Bus7", 230, 1, 0 ,"PV Bus")
 
         # ADD TRANSMISSION LINES
         circuit1.add_conductor("Partridge", 0.642, 0.0217, 0.385, 460)
