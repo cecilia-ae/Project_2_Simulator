@@ -147,12 +147,12 @@ if __name__ == "__main__":
 
         # ADD BUSES
         circuit1.add_bus("Bus1", 230, 1, 0 ,"Slack Bus")
-        circuit1.add_bus("Bus2", 230, 1, 0 ,"PV Bus")
-        circuit1.add_bus("Bus3", 230, 1, 0 ,"PV Bus")
-        circuit1.add_bus("Bus4", 230, 1, 0 ,"PV Bus")
-        circuit1.add_bus("Bus5", 230, 1, 0 ,"PV Bus")
-        circuit1.add_bus("Bus6", 230, 1, 0 ,"PV Bus")
-        circuit1.add_bus("Bus7", 230, 1, 0 ,"PQ Bus")
+        circuit1.add_bus("Bus2", 230, 1, 0 ,"PQ Bus")
+        circuit1.add_bus("Bus3", 230, 1, 0 ,"PQ Bus")
+        circuit1.add_bus("Bus4", 230, 1, 0 ,"PQ Bus")
+        circuit1.add_bus("Bus5", 230, 1, 0 ,"PQ Bus")
+        circuit1.add_bus("Bus6", 230, 1, 0 ,"PQ Bus")
+        circuit1.add_bus("Bus7", 230, 1, 0 ,"PV Bus")
 
         # ADD TRANSMISSION LINES
         circuit1.add_conductor("Partridge", 0.642, 0.0217, 0.385, 460)
