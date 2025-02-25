@@ -2,7 +2,7 @@
 # ECE 2774
 # Milestone 2
 
-from typing import Dict
+from typing import Dict, Generator
 import numpy as np
 import pandas as pd
 
@@ -16,6 +16,8 @@ from Geometry import Geometry
 from Bus import Bus
 from TransmissionLine import TransmissionLine
 from Transformer import Transformer
+from Generator import Generator
+from Load import Load
 class Circuit:
 
 
@@ -27,16 +29,18 @@ class Circuit:
         self.bundles: Dict[str, Bundle] = {}
         self.geometries: Dict[str, Geometry] = {}
         self.transmissionlines: Dict[str, TransmissionLine] = {}
+        self.generators: Dict[str, Generator] = {}
+        self.loads: Dict[str, Load] = {}
 
         self.ybus = self.calc_ybus()
 
-    def add_bus(self, bus: str, base_kv: float, vpu: float, delta: float, bus_type: str):
+    def add_bus(self, bus: str, base_kv: float):
 
         # add a bus to the circuit
 
         if bus in self.buses:
             raise ValueError(f"Bus '{bus}' already exists.")
-        self.buses[bus] = Bus(bus, base_kv, vpu, delta, bus_type)
+        self.buses[bus] = Bus(bus, base_kv)
 
     def add_transformer(self, name: str, bus1_name: str, bus2_name: str, power_rating: float,
                         impedance_percent: float, x_over_r_ratio: float):
@@ -105,6 +109,22 @@ class Circuit:
 
         self.transmissionlines[name] = TransmissionLine(name, bus1, bus2, bundle, geometry, length)
 
+    def add_generator(self, name: str, bus: str, voltage_setpoint: float, mw_setpoint: float):
+
+        # add a generator to the circuit
+
+        if name in self.generators:
+            raise ValueError(f"Generator '{name}' already exists.")
+        self.generators[name] = Generator(name, bus, voltage_setpoint, mw_setpoint)
+
+    def add_load(self, name: str, bus: str, real_power: float, reactive_power: float):
+
+        # add a generator to the circuit
+
+        if name in self.loads:
+            raise ValueError(f"Load '{name}' already exists.")
+        self.loads[name] = Load(name, bus, real_power, reactive_power)
+
     def calc_ybus(self):
         # set up the zeroes data frame
         busnames = list(self.buses.keys())  # list of bus names
@@ -146,13 +166,13 @@ if __name__ == "__main__":
         circuit1 = Circuit("Test Circuit")
 
         # ADD BUSES
-        circuit1.add_bus("Bus1", 230, 1, 0 ,"Slack Bus")
-        circuit1.add_bus("Bus2", 230, 1, 0 ,"PQ Bus")
-        circuit1.add_bus("Bus3", 230, 1, 0 ,"PQ Bus")
-        circuit1.add_bus("Bus4", 230, 1, 0 ,"PQ Bus")
-        circuit1.add_bus("Bus5", 230, 1, 0 ,"PQ Bus")
-        circuit1.add_bus("Bus6", 230, 1, 0 ,"PQ Bus")
-        circuit1.add_bus("Bus7", 230, 1, 0 ,"PV Bus")
+        circuit1.add_bus("Bus1", 230)
+        circuit1.add_bus("Bus2", 230)
+        circuit1.add_bus("Bus3", 230)
+        circuit1.add_bus("Bus4", 230)
+        circuit1.add_bus("Bus5", 230)
+        circuit1.add_bus("Bus6", 230)
+        circuit1.add_bus("Bus7", 230)
 
         # ADD TRANSMISSION LINES
         circuit1.add_conductor("Partridge", 0.642, 0.0217, 0.385, 460)
@@ -170,8 +190,21 @@ if __name__ == "__main__":
         circuit1.add_transformer("T1", "Bus1", "Bus2", 125,8.5, 10)
         circuit1.add_transformer("T2", "Bus6", "Bus7", 200,10.5, 12)
 
-        print("busnames:", list(circuit1.buses.keys()))  # Should print list of names
+        # ADD GENERATORS
+        circuit1.add_generator("G1", "Bus1", 230, 100)
+        circuit1.add_generator("G2", "Bus7", 20, 100)
 
+        # ADD LOAD
+        circuit1.add_load("Load1", "Bus5", 200,100)
+
+
+        # PRINT CHECK
+        print(circuit1.generators["G1"].name, circuit1.generators["G1"].bus, circuit1.generators["G1"].voltage_setpoint, circuit1.generators["G1"].mw_setpoint)
+        print(circuit1.generators["G2"].name, circuit1.generators["G2"].bus, circuit1.generators["G2"].voltage_setpoint, circuit1.generators["G2"].mw_setpoint)
+        print(circuit1.loads["L1"].name, circuit1.loads["L1"].bus, circuit1.loads["L1"].real_power, circuit1.loads["L1"].reactive_power)
+
+
+        # YBUS CHECK
         circuit1.calc_ybus()
 
         print("Ybus DataFrame:\n", circuit1.ybus)
