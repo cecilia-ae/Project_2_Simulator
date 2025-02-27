@@ -2,7 +2,7 @@
 # ECE 2774
 # Milestone 2
 
-from typing import Dict, Generator
+from typing import Dict
 import numpy as np
 import pandas as pd
 
@@ -115,7 +115,15 @@ class Circuit:
 
         if name in self.generators:
             raise ValueError(f"Generator '{name}' already exists.")
-        self.generators[name] = Generator(name, bus, voltage_setpoint, mw_setpoint)
+        if bus not in self.buses:
+            raise ValueError(f"Bus '{bus}' does not exist in the circuit.")
+
+        bus_obj = self.buses[bus]
+        self.generators[name] = Generator(name, bus_obj, voltage_setpoint, mw_setpoint)
+
+        # Change the bus type from PQ to PV since it now has a generator
+        bus_obj.bus_type = "PV Bus"
+
 
     def add_load(self, name: str, bus: str, real_power: float, reactive_power: float):
 
@@ -124,6 +132,19 @@ class Circuit:
         if name in self.loads:
             raise ValueError(f"Load '{name}' already exists.")
         self.loads[name] = Load(name, bus, real_power, reactive_power)
+
+    def set_slack_bus(self, bus_name: str):
+        if bus_name not in self.buses:
+            raise ValueError(f"Bus '{bus_name}' does not exist in the circuit.")
+        bus_obj = self.buses[bus_name]
+        if bus_obj.bus_type != "PV Bus":  # a
+            raise ValueError(f"Bus '{bus_name}' is not a PV bus and cannot be a Slack bus.")
+
+        # Set the Slack bus
+        self.slack_bus = bus_name
+        bus_obj.bus_type = "Slack Bus"
+
+        print(f"Slack bus set to: {bus_name}")
 
     def calc_ybus(self):
         # set up the zeroes data frame
@@ -195,14 +216,20 @@ if __name__ == "__main__":
         circuit1.add_generator("G2", "Bus7", 20, 100)
 
         # ADD LOAD
-        circuit1.add_load("Load1", "Bus5", 200,100)
+        circuit1.add_load("L1", "Bus5", 200,100)
 
 
         # PRINT CHECK
         print(circuit1.generators["G1"].name, circuit1.generators["G1"].bus, circuit1.generators["G1"].voltage_setpoint, circuit1.generators["G1"].mw_setpoint)
         print(circuit1.generators["G2"].name, circuit1.generators["G2"].bus, circuit1.generators["G2"].voltage_setpoint, circuit1.generators["G2"].mw_setpoint)
         print(circuit1.loads["L1"].name, circuit1.loads["L1"].bus, circuit1.loads["L1"].real_power, circuit1.loads["L1"].reactive_power)
-
+        print(f"Bus1 type: {circuit1.buses['Bus1'].bus_type}")  # Should print "PV Bus"
+        print(f"Bus7 type: {circuit1.buses['Bus7'].bus_type}")  # Should print "PV Bus"
+        # Let the user pick which PV bus should be the Slack bus
+        user_choice = input("Enter the bus name to be the Slack bus: ")
+        circuit1.set_slack_bus(user_choice)  # Set the Slack bus
+        # Verify Slack Bus
+        print(f"The Slack bus is now: {circuit1.slack_bus}")
 
         # YBUS CHECK
         circuit1.calc_ybus()
@@ -210,3 +237,14 @@ if __name__ == "__main__":
         print("Ybus DataFrame:\n", circuit1.ybus)
         print("Ybus Index:", circuit1.ybus.index)
         print("Ybus Columns:", circuit1.ybus.columns)
+
+
+
+
+
+
+
+
+
+
+

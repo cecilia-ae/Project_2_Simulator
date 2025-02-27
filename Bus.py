@@ -10,12 +10,16 @@ class Bus:
 
         self.name = name
         self.base_kv = base_kv
-        self.vpu = vpu
-        self.delta = delta
-        self.bus_type = PQ Bus
+        self.vpu = 1
+        self.delta = 0
+        self.bus_type = "PQ Bus"
 
         Bus.instance_count += 1
         self.index = Bus.instance_count
 
+
+# PQ bus = buses connected to loads (transmission lines in this case).
+# PV Bus = buses connected to a generator in this case.
+# Slack Bus = can be either 1 or 7 in the 7 bus circuit.
 
 
