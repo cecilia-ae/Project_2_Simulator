@@ -10,9 +10,9 @@ from Bus import Bus
 
 class Solution:
 
-    def __init__(self, circuit: Circuit):
-
+    def __init__(self, circuit: Circuit, bus: Bus):
         self.circuit = circuit
+        self.bus = bus
         self.ybus = circuit.ybus  # Use Ybus from Circuit
         self.voltages, self.angles = self.get_voltages()  # Extract voltage magnitudes & angles
 
@@ -58,6 +58,55 @@ class Solution:
 
         return P, Q
 
+    def compute_power_mismatch(self):
+        buses = self.circuit.buses
+        voltages = {bus.name: bus.vpu * np.exp(1j * np.radians(bus.delta)) for bus in buses.values()}
+
+        mismatch_vector = []
+
+        if not set(buses.keys()).issubset(set(self.ybus.index)):
+            raise ValueError("Mismatch between buses in circuit and Y-bus matrix.")
+
+        for bus_name, bus in buses.items():
+            if bus.bus_type == "Slack Bus":
+                continue  # No mismatch for Slack Bus
+
+            p_specified = 0
+            q_specified = 0
+
+            # Sum power injections from generators
+            for gen in self.circuit.generators.values():
+                if gen.bus.name == bus_name:
+                    p_specified += gen.mw_setpoint
+                    if bus.bus_type == "PQ Bus":
+                        q_specified += gen.mvar_setpoint if hasattr(gen, 'mvar_setpoint') else 0
+
+            # Sum power consumed by loads
+            for load in self.circuit.loads.values():
+                if load.bus == bus_name:
+                    p_specified -= load.real_power
+                    q_specified -= load.reactive_power
+
+            # Calculate actual injected power using Ybus
+            v_bus = voltages[bus_name]
+            p_calculated = 0
+            q_calculated = 0
+
+            for other_bus_name, v_other in voltages.items():
+                if bus_name in self.ybus.index and other_bus_name in self.ybus.columns:
+                    y_ij = self.ybus.loc[bus_name, other_bus_name]
+                    p_calculated += np.real(v_bus * np.conj(y_ij * v_other))
+                    q_calculated += np.imag(v_bus * np.conj(y_ij * v_other))
+
+            # Compute mismatches
+            delta_p = p_specified - p_calculated
+            delta_q = q_specified - q_calculated
+
+            mismatch_vector.append(delta_p)
+            if bus.bus_type == "PQ Bus":
+                mismatch_vector.append(delta_q)
+
+        return np.array(mismatch_vector)
 
 if __name__ == "__main__":
     # Create test circuit
@@ -68,12 +117,9 @@ if __name__ == "__main__":
     circuit.add_bus("Bus2", 230)
     circuit.add_bus("Bus3", 230)
 
-    # Add a generator to Bus1 and set it as PV
+    # Add a generator to Bus1 and set it as PV, and add load
     circuit.add_generator("G1", "Bus1", 230, 100)
-
-    # Let the user pick which PV bus should be the Slack bus
-    user_choice = input("Enter the bus name to be the Slack bus: ")
-    circuit.set_slack_bus(user_choice)  # Set the Slack bus
+    circuit.add_load("Load1", "Bus2", 50, 30)
 
     circuit.calc_ybus()
 
@@ -86,3 +132,12 @@ if __name__ == "__main__":
     print("\nPower Injection Results:")
     for i, bus in enumerate(circuit.buses.keys()):
         print(f"{bus}: P = {P[i]:.3f}, Q = {Q[i]:.3f}")
+
+    # Compute power mismatch
+    mismatches = solution.compute_power_mismatch()
+    print("Power Mismatch Vector:", mismatches)
+
+    if np.allclose(mismatches, 0, atol=1e-6):
+        print("Validation Passed: Mismatches are within tolerance.")
+    else:
+        print("Validation Failed: Check power flow calculations.")
