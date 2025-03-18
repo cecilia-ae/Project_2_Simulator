@@ -3,16 +3,14 @@
 # Solution
 
 import numpy as np
-import pandas as pd
 from Circuit import Circuit
 from Bus import Bus
 
 
 class Solution:
 
-    def __init__(self, circuit: Circuit, bus: Bus):
+    def __init__(self, circuit: Circuit):
         self.circuit = circuit
-        self.bus = bus
         self.ybus = circuit.ybus  # Use Ybus from Circuit
         self.voltages, self.angles = self.get_voltages()  # Extract voltage magnitudes & angles
 
@@ -109,35 +107,76 @@ class Solution:
         return np.array(mismatch_vector)
 
 if __name__ == "__main__":
-    # Create test circuit
-    circuit = Circuit("Test Circuit")
+    # create test circuit
+    circuit1 = Circuit("Test Circuit")
 
-    # Add buses
-    circuit.add_bus("Bus1", 230)
-    circuit.add_bus("Bus2", 230)
-    circuit.add_bus("Bus3", 230)
+    # ADD BUSES
+    circuit1.add_bus("Bus1", 230)
+    circuit1.add_bus("Bus2", 230)
+    circuit1.add_bus("Bus3", 230)
+    circuit1.add_bus("Bus4", 230)
+    circuit1.add_bus("Bus5", 230)
+    circuit1.add_bus("Bus6", 230)
+    circuit1.add_bus("Bus7", 230)
 
-    # Add a generator to Bus1 and set it as PV, and add load
-    circuit.add_generator("G1", "Bus1", 230, 100)
-    circuit.add_load("Load1", "Bus2", 50, 30)
+    # ADD TRANSMISSION LINES
+    circuit1.add_conductor("Partridge", 0.642, 0.0217, 0.385, 460)
+    circuit1.add_bundle("Bundle1", 2, 1.5, "Partridge")
+    circuit1.add_geometry("Geometry1", 0, 0, 18.5, 0, 37, 0)
 
-    circuit.calc_ybus()
+    circuit1.add_tline("Line1", "Bus2", "Bus4", "Bundle1", "Geometry1", 10)
+    circuit1.add_tline("Line2", "Bus2", "Bus3", "Bundle1", "Geometry1", 25)
+    circuit1.add_tline("Line3", "Bus3", "Bus5", "Bundle1", "Geometry1", 20)
+    circuit1.add_tline("Line4", "Bus4", "Bus6", "Bundle1", "Geometry1", 20)
+    circuit1.add_tline("Line5", "Bus5", "Bus6", "Bundle1", "Geometry1", 10)
+    circuit1.add_tline("Line6", "Bus4", "Bus5", "Bundle1", "Geometry1", 35)
 
-    # Instantiate solution object (extracts voltages from circuit)
-    solution = Solution(circuit)
+    # ADD TRANSMORMERS
+    circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10)
+    circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12)
 
-    # Compute power injections
+    # ADD GENERATORS
+    circuit1.add_generator("G1", "Bus1", 230, 100)
+    circuit1.add_generator("G2", "Bus7", 20, 100)
+
+    # CHANGE SLACK BUS
+    circuit1.set_slack_bus("Bus7")
+
+    # ADD LOAD
+    circuit1.add_load("L1", "Bus3", 110, 50)
+    circuit1.add_load("L2", "Bus4", 100, 70)
+    circuit1.add_load("L3", "Bus5", 100,65)
+
+    circuit1.calc_ybus()
+
+    # solution object (extracts voltages from circuit)
+    solution = Solution(circuit1)
+
+    # compute power injections
     P, Q = solution.compute_power_injection()
 
     print("\nPower Injection Results:")
-    for i, bus in enumerate(circuit.buses.keys()):
+    for i, bus in enumerate(circuit1.buses.keys()):
         print(f"{bus}: P = {P[i]:.3f}, Q = {Q[i]:.3f}")
 
-    # Compute power mismatch
-    mismatches = solution.compute_power_mismatch()
-    print("Power Mismatch Vector:", mismatches)
+    # computer power mismatch
 
+    mismatches = solution.compute_power_mismatch()
+
+    print("\nPower Mismatch Results:")
+    index = 0
+    for bus_name, bus in circuit1.buses.items():
+        if bus.bus_type == "Slack Bus":
+            continue  # Skip Slack Bus in the mismatch vector
+
+        print(f"{bus_name}: ΔP = {mismatches[index]:.4f}")
+        index += 1
+        if bus.bus_type == "PQ Bus":
+            print(f"      ΔQ = {mismatches[index]:.4f}")
+            index += 1
+
+    # Check validation
     if np.allclose(mismatches, 0, atol=1e-6):
-        print("Validation Passed: Mismatches are within tolerance.")
+        print("\nValidation Passed: Mismatches are within tolerance.")
     else:
-        print("Validation Failed: Check power flow calculations.")
+        print("\nValidation Failed: Check power flow calculations.")
