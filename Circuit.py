@@ -20,7 +20,6 @@ from Generator import Generator
 from Load import Load
 class Circuit:
 
-
     def __init__(self, name: str):
         self.name = name  # Set the circuit name
         self.buses: Dict[str, Bus] = {}
@@ -32,6 +31,7 @@ class Circuit:
         self.generators: Dict[str, Generator] = {}
         self.loads: Dict[str, Load] = {}
 
+        self.slack_bus = None
         self.ybus = self.calc_ybus()
 
     def add_bus(self, bus: str, base_kv: float):
@@ -141,7 +141,6 @@ class Circuit:
         self.slack_bus = bus_name
         self.buses[bus_name].bus_type = "Slack Bus"
 
-
     def add_load(self, name: str, bus: str, real_power: float, reactive_power: float):
 
         # add a generator to the circuit
@@ -149,7 +148,6 @@ class Circuit:
         if name in self.loads:
             raise ValueError(f"Load '{name}' already exists.")
         self.loads[name] = Load(name, bus, real_power, reactive_power)
-
     def calc_ybus(self):
         # set up the zeroes data frame
         busnames = list(self.buses.keys())  # list of bus names
@@ -160,29 +158,14 @@ class Circuit:
             bus1_name = tline.bus1.name
             bus2_name = tline.bus2.name
 
-            # use the yprim data from the transmission line
             yprim = tline.yprim
 
-            # add the transmission line admittance matrix to Ybus
             ybus.loc[bus1_name, bus1_name] += yprim.loc[bus1_name, bus1_name]
             ybus.loc[bus2_name, bus2_name] += yprim.loc[bus2_name, bus2_name]
             ybus.loc[bus1_name, bus2_name] += yprim.loc[bus1_name, bus2_name]
             ybus.loc[bus2_name, bus1_name] += yprim.loc[bus2_name, bus1_name]
 
-        for transformer_name, transformer in self.transformers.items():
-            bus1_name = transformer.bus1.name
-            bus2_name = transformer.bus2.name
-
-            # use the yprim data from the transformer
-            yprim = transformer.yprim
-
-            # add the transformer admittance matrix to ybus
-            ybus.loc[bus1_name, bus1_name] += yprim.loc[bus1_name, bus1_name]
-            ybus.loc[bus2_name, bus2_name] += yprim.loc[bus2_name, bus2_name]
-            ybus.loc[bus1_name, bus2_name] += yprim.loc[bus1_name, bus2_name]
-            ybus.loc[bus2_name, bus1_name] += yprim.loc[bus2_name, bus1_name]
         self.ybus = ybus
-
 
         return ybus
 
