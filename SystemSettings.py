@@ -7,4 +7,6 @@ class SystemSettings:
     f = 60  # Frequency in Hz
     ε_0 = 8.854 * 10 ** -12  # permittivity of free space (F/m)
 
-        
+
+
+#think of flex start, V=1 pu, delta = 0, and then calculate P and Q

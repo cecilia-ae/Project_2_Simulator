@@ -4,8 +4,6 @@
 
 import numpy as np
 from Circuit import Circuit
-from Bus import Bus
-
 
 class Solution:
 
@@ -98,13 +96,55 @@ class Solution:
 
             # Compute mismatches
             delta_p = p_specified - p_calculated
-            delta_q = q_specified - q_calculated
-
             mismatch_vector.append(delta_p)
+
             if bus.bus_type == "PQ Bus":
+                delta_q = q_specified - q_calculated
                 mismatch_vector.append(delta_q)
 
         return np.array(mismatch_vector)
+
+    def newton_raphson(self, tolerance=0.001, max_iterations=50):
+
+        for iteration in range(1, max_iterations + 1):
+            # Step 1: power mismatches
+            mismatches = self.compute_power_mismatch()
+
+            # Step 2: check for convergence
+            max_mismatch = np.max(np.abs(mismatches))
+            print(f"Iteration {iteration}: Max Mismatch = {max_mismatch:.6f}")
+            if max_mismatch < tolerance:
+                print("\nNewton-Raphson converged successfully!")
+                return
+
+            # Step 3: compute jacobian with jacobian class
+            from Jacobian import Jacobian
+
+            jacobian = Jacobian(self)
+            J = jacobian.calc_jacobian()
+
+            # Step 4: solve for voltage updates
+            try:
+                delta_values = np.linalg.solve(J, mismatches)  # Solve J * Δy = Mismatch
+            except np.linalg.LinAlgError:
+                print("\nError: Jacobian is singular. Newton-Raphson failed.")
+                return
+
+            # Step 5: update voltage magnitudes and angles
+            bus_list = [bus for bus in self.circuit.buses.keys() if self.circuit.buses[bus].bus_type != "Slack Bus"]
+            delta_index = 0
+
+            for bus_name in bus_list:
+                if bus_name in self.voltages:
+                    if self.circuit.buses[bus_name].bus_type in ["PQ Bus", "PV Bus"]:
+                        self.angles[bus_name] += delta_values[delta_index]
+                        delta_index += 1
+                    if self.circuit.buses[bus_name].bus_type == "PQ Bus":
+                        self.voltages[bus_name] += delta_values[delta_index]
+                        delta_index += 1
+
+        # if there are 50 iterations and it did not converge print the error message
+        print("\nError: Newton-Raphson did not converge within 50 iterations.")
 
 if __name__ == "__main__":
     # create test circuit
@@ -139,28 +179,25 @@ if __name__ == "__main__":
     circuit1.add_generator("G1", "Bus1", 230, 100)
     circuit1.add_generator("G2", "Bus7", 20, 100)
 
-    # CHANGE SLACK BUS
-    circuit1.set_slack_bus("Bus7")
-
     # ADD LOAD
     circuit1.add_load("L1", "Bus3", 110, 50)
     circuit1.add_load("L2", "Bus4", 100, 70)
     circuit1.add_load("L3", "Bus5", 100,65)
 
+
     circuit1.calc_ybus()
 
-    # solution object (extracts voltages from circuit)
+
     solution = Solution(circuit1)
 
-    # compute power injections
+    # power injections
     P, Q = solution.compute_power_injection()
 
     print("\nPower Injection Results:")
     for i, bus in enumerate(circuit1.buses.keys()):
         print(f"{bus}: P = {P[i]:.3f}, Q = {Q[i]:.3f}")
 
-    # computer power mismatch
-
+    # power mismatches
     mismatches = solution.compute_power_mismatch()
 
     print("\nPower Mismatch Results:")
@@ -175,8 +212,33 @@ if __name__ == "__main__":
             print(f"      ΔQ = {mismatches[index]:.4f}")
             index += 1
 
-    # Check validation
-    if np.allclose(mismatches, 0, atol=1e-6):
-        print("\nValidation Passed: Mismatches are within tolerance.")
-    else:
-        print("\nValidation Failed: Check power flow calculations.")
+    # Newton-Raphson power flow solver
+    solution.newton_raphson()
+
+    # final voltages and angles after convergence
+    print("\nFinal Bus Voltages and Angles:")
+    for bus_name in circuit1.buses.keys():
+        print(f"{bus_name}: Voltage = {solution.voltages[bus_name]:.4f} p.u., "
+              f"Angle = {solution.angles[bus_name]:.4f} radians")
+
+    # final power injections after Newton-Raphson
+    P_final, Q_final = solution.compute_power_injection()
+
+    print("\nFinal Power Injection Results (After Newton-Raphson):")
+    for i, bus in enumerate(circuit1.buses.keys()):
+        print(f"{bus}: P = {P_final[i]:.3f}, Q = {Q_final[i]:.3f}")
+
+    # final power mismatches
+    mismatches_final = solution.compute_power_mismatch()
+
+    print("\nFinal Power Mismatch Results:")
+    index = 0
+    for bus_name, bus in circuit1.buses.items():
+        if bus.bus_type == "Slack Bus":
+            continue  # Skip Slack Bus in the mismatch vector
+
+        print(f"{bus_name}: ΔP = {mismatches_final[index]:.4f}")
+        index += 1
+        if bus.bus_type == "PQ Bus":
+            print(f"      ΔQ = {mismatches_final[index]:.4f}")
+            index += 1

@@ -119,13 +119,16 @@ class Circuit:
             raise ValueError(f"Bus '{bus}' does not exist in the circuit.")
 
         bus_obj = self.buses[bus]
-        self.generators[name] = Generator(name, bus_obj, voltage_setpoint, mw_setpoint)
 
-        if not self.slack_bus:
+        if len(self.generators) == 0:
             self.slack_bus = bus
             bus_obj.bus_type = "Slack Bus"
         else:
             bus_obj.bus_type = "PV Bus"
+
+        self.generators[name] = Generator(name, bus_obj, voltage_setpoint, mw_setpoint)
+
+
 
     def set_slack_bus(self, bus_name: str):
         if bus_name not in self.buses:
@@ -222,14 +225,3 @@ if __name__ == "__main__":
         print("Ybus DataFrame:\n", circuit1.ybus)
         print("Ybus Index:", circuit1.ybus.index)
         print("Ybus Columns:", circuit1.ybus.columns)
-
-
-
-
-
-
-
-
-
-
-
