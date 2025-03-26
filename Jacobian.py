@@ -1,3 +1,7 @@
+# Group 8 - Project 2
+# ECE 2774
+# Jacobian
+
 import numpy as np
 from Solution import Solution
 from Circuit import Circuit
@@ -12,7 +16,7 @@ class Jacobian:
         self.buses = solution.circuit.buses
 
     def calc_jacobian(self):
-        # Identify PV and PQ buses
+        # PV and PQ buses
         bus_list = list(self.buses.keys())
         pv_pq_buses = [b for b in bus_list if self.buses[b].bus_type in ["PV Bus", "PQ Bus"]]
         pq_buses = [b for b in bus_list if self.buses[b].bus_type == "PQ Bus"]
@@ -32,63 +36,41 @@ class Jacobian:
             vi = self.voltages[bus_i]
             delta_i = self.angles[bus_i]
 
-            # Get admittance row for bus_i
+            # Gadmittance row for bus_i
             y_row = self.ybus.loc[bus_i]
             yii = y_row[bus_i]
-            gii, bii = np.real(yii), np.imag(yii)  # Real and imaginary parts
 
-            # Find index for reactive power equations (only PQ buses)
+            # index for reactive power equations (only PQ buses)
             qi_idx = pq_buses.index(bus_i) if bus_i in pq_buses else None
 
-            # Self-term accumulations
-            J1_self = 0
-            J2_self = 0
-            J3_self = 0
-            J4_self = 0
 
             for j, bus_j in enumerate(pv_pq_buses):
-                if bus_i == bus_j:
-                    continue  # Skip self term here, handle later
 
                 vj = self.voltages[bus_j]
                 delta_j = self.angles[bus_j]
                 yij = y_row[bus_j]
                 gij, bij = np.real(yij), np.imag(yij)
 
-                theta_ij = np.arctan2(bij, gij)  # Angle of admittance
+                theta_ij = np.arctan2(bij, gij)  # angle of admittance
 
-                # Compute active power derivatives
+                # compute active power derivatives
                 dP_dDelta = vi * vj * abs(yij) * np.sin(delta_i - delta_j - theta_ij)
                 J1[i, j] = dP_dDelta
-                J1_self -= dP_dDelta
 
-                if qi_idx is not None:  # Reactive power
+                if qi_idx is not None:  # reactive power
                     dQ_dDelta = -vi * vj * abs(yij) * np.cos(delta_i - delta_j - theta_ij)
                     J3[qi_idx, j] = dQ_dDelta
-                    J3_self -= dQ_dDelta
 
-                if bus_j in pq_buses:  # Only apply dP/dV and dQ/dV to PQ buses
+                if bus_j in pq_buses:  # only apply dP/dV and dQ/dV to PQ buses
                     qj_idx = pq_buses.index(bus_j)
                     dP_dV = vi * abs(yij) * np.cos(delta_i - delta_j - theta_ij)
                     J2[i, qj_idx] = dP_dV
-                    J2_self -= dP_dV
 
                     if qi_idx is not None:
                         dQ_dV = vi * abs(yij) * np.sin(delta_i - delta_j - theta_ij)
                         J4[qi_idx, qj_idx] = dQ_dV
-                        J4_self -= dQ_dV
 
-            # Compute self terms
-            J1[i, i] = -vi**2 * bii + J1_self
-            if bus_i in pq_buses:
-                q_idx = pq_buses.index(bus_i)
-                J3[q_idx, i] = vi**2 * gii + J3_self
-                J4[q_idx, q_idx] = vi * bii + J4_self
-
-                if q_idx < J2.shape[1]:  # Ensure index is valid
-                    J2[i, q_idx] = vi * gii + J2_self
-
-        # Combine sub-matrices into final Jacobian
+        # combine for full jacobian
         J_top = np.hstack((J1, J2))  # Stack horizontally
         J_bottom = np.hstack((J3, J4))  # Stack horizontally
         J = np.vstack((J_top, J_bottom))  # Stack vertically
