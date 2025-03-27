@@ -5,7 +5,6 @@
 import numpy as np
 from Solution import Solution
 from Circuit import Circuit
-import pandas as pd
 
 
 class Jacobian:
@@ -60,8 +59,7 @@ class Jacobian:
                     if is_pq_bus:
 
                         qi_idx = pq_buses.index(bus_i)
-                        J3[qi_idx, j] = sum(vi * self.voltages[b] * abs(y_row[b]) * np.cos(
-                            delta_i - self.angles[b] - np.angle(y_row[b]))
+                        J3[qi_idx, j] = sum(vi * self.voltages[b] * abs(y_row[b]) * np.cos(delta_i - self.angles[b] - np.angle(y_row[b]))
                                             for b in pv_pq_buses if b != bus_i)
                 else:
                     # off-diagonal elements of J1 (dP/d delta)
@@ -88,12 +86,10 @@ class Jacobian:
                             for b in pv_pq_buses if b != bus_i) - vi * abs(y_row[bus_i])
                     else:
                         # off-diagonal elements of J2 (dP/dV)
-                        J2[i, j] = vi * abs(y_row[bus_j]) * np.cos(
-                            delta_i - self.angles[bus_j] - np.angle(y_row[bus_j]))
+                        J2[i, j] = vi * abs(y_row[bus_j]) * np.cos(delta_i - self.angles[bus_j] - np.angle(y_row[bus_j]))
 
                         # off-diagonal elements of J4 (dQ/dV)
-                        J4[qi_idx, j] = -vi * abs(y_row[bus_j]) * np.sin(
-                            delta_i - self.angles[bus_j] - np.angle(y_row[bus_j]))
+                        J4[qi_idx, j] = -vi * abs(y_row[bus_j]) * np.sin(delta_i - self.angles[bus_j] - np.angle(y_row[bus_j]))
 
         # Construct full Jacobian matrix
         J_top = np.hstack((J1, J2))
