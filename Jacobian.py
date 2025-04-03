@@ -11,8 +11,24 @@ class Jacobian:
     def __init__(self, solution):
         self.solution = solution
         self.ybus = solution.ybus
-        self.voltages = solution.voltages
-        self.angles = solution.angles
+        # self.voltages = solution.voltages
+        # self.angles = solution.angles
+        self.voltages = {
+            "Bus1": 1.00000,
+            "Bus2": 0.93710,
+            "Bus3": 0.92080,
+            "Bus4": 0.93004,
+            "Bus5": 0.92700,
+            "Bus6": 0.93985,
+            "Bus7": 0.99999}
+        self.angles = {
+            "Bus1": 0,
+            "Bus2": -0.077492619,
+            "Bus3": -0.095120444,
+            "Bus4": -0.082030475,
+            "Bus5": -0.084299403,
+            "Bus6": -0.069115038,
+            "Bus7": 0.037524579}
         self.buses = solution.circuit.buses
 
     def calc_jacobian(self):
@@ -20,22 +36,20 @@ class Jacobian:
         bus_list = list(self.buses.keys())
         pv_pq_buses = [b for b in bus_list if self.buses[b].bus_type in ["PV Bus", "PQ Bus"]]
         pq_buses = [b for b in bus_list if self.buses[b].bus_type == "PQ Bus"]
+        all_bus = [b for b in bus_list if self.buses[b].bus_type in ["PV Bus", "PQ Bus", "Slack"]]
 
-
-        # dimensions for matricies
+        # dimensions for matrices
         sizep = len(pv_pq_buses)  # P equations (PV + PQ)
         sizeq = len(pq_buses)  # Q equations (PQ only)
 
-        # sub matricies
+        # sub matrices
         J1 = np.zeros((sizep, sizep))  # dP/dDelta
         J2 = np.zeros((sizep, sizeq))  # dP/dV
         J3 = np.zeros((sizeq, sizep))  # dQ/dDelta
         J4 = np.zeros((sizeq, sizeq))  # dQ/dV
 
-
-
+        # Calculate J1 and J3 (derivatives with respect to angle)
         for i, bus_i in enumerate(pv_pq_buses):
-
             vi = self.voltages[bus_i]
             delta_i = self.angles[bus_i]
             y_row = self.ybus.loc[bus_i]
@@ -44,7 +58,6 @@ class Jacobian:
             is_pq_bus = bus_i in pq_buses
 
             for j, bus_j in enumerate(pv_pq_buses):
-
                 vj = self.voltages[bus_j]
                 delta_j = self.angles[bus_j]
                 yij = y_row[bus_j]
@@ -52,15 +65,19 @@ class Jacobian:
 
                 if i == j:
                     # diagonal elements of J1 (dP/dDelta)
-                    J1[i, j] = -sum(vi * self.voltages[b] * abs(y_row[b]) * np.sin(delta_i - self.angles[b] - np.angle(y_row[b]))
-                        for b in pv_pq_buses if b != bus_i)
+                    J1[i, j] = -vi * sum(self.voltages[b] * abs(y_row[b]) * np.sin(delta_i - self.angles[b] - np.angle(y_row[b]))
+                        for b in all_bus if b != bus_i)
 
-                    # diagonal elements of J3 (dP/dDelta)
+                    """for b in all_bus:
+                        if b != bus_i
+                        equation"""
+
+                    # diagonal elements of J3 (dQ/dDelta)
                     if is_pq_bus:
-
                         qi_idx = pq_buses.index(bus_i)
-                        J3[qi_idx, j] = sum(vi * self.voltages[b] * abs(y_row[b]) * np.cos(delta_i - self.angles[b] - np.angle(y_row[b]))
-                                            for b in pv_pq_buses if b != bus_i)
+                        J3[qi_idx, j] = sum(vi * self.voltages[b] * abs(y_row[b]) * np.cos(
+                            delta_i - self.angles[b] - np.angle(y_row[b]))
+                                            for b in all_bus if b != bus_i)
                 else:
                     # off-diagonal elements of J1 (dP/d delta)
                     J1[i, j] = vi * vj * abs(yij) * np.sin(delta_i - delta_j - theta_ij)
@@ -70,26 +87,41 @@ class Jacobian:
                         qi_idx = pq_buses.index(bus_i)
                         J3[qi_idx, j] = -vi * vj * abs(yij) * np.cos(delta_i - delta_j - theta_ij)
 
-            # partial derivatives for voltage magnitudes (only for PQ buses)
-            if bus_i in pq_buses:
-                qi_idx = pq_buses.index(bus_i)
+        # Calculate J2 and J4 (derivatives with respect to voltage)
+        for i, bus_i in enumerate(pv_pq_buses):
+            vi = self.voltages[bus_i]
+            delta_i = self.angles[bus_i]
+            y_row = self.ybus.loc[bus_i]
 
-                # Compute all J2 and J4 elements
-                for j, bus_j in enumerate(pq_buses):
-                    if i == j:
-                        # diagonal elements of J2 (dP/dV)
-                        J2[i, j] = sum(vi * abs(y_row[b]) * np.cos(delta_i - self.angles[b] - np.angle(y_row[b]))
-                            for b in pv_pq_buses if b != bus_i) + vi * abs(y_row[bus_i])
+            # check if PQ bus for Q equations
+            is_pq_bus = bus_i in pq_buses
 
-                        # diagonal elements of J4 (dQ/dV)
-                        J4[j, j] = -sum(vi * abs(y_row[b]) * np.sin(delta_i - self.angles[b] - np.angle(y_row[b]))
-                            for b in pv_pq_buses if b != bus_i) - vi * abs(y_row[bus_i])
-                    else:
-                        # off-diagonal elements of J2 (dP/dV)
-                        J2[i, j] = vi * abs(y_row[bus_j]) * np.cos(delta_i - self.angles[bus_j] - np.angle(y_row[bus_j]))
+            for j, bus_j in enumerate(pq_buses):
+                vj = self.voltages[bus_j]
+                delta_j = self.angles[bus_j]
+                yij = y_row[bus_j]
+                theta_ij = np.angle(yij)
 
-                        # off-diagonal elements of J4 (dQ/dV)
-                        J4[qi_idx, j] = -vi * abs(y_row[bus_j]) * np.sin(delta_i - self.angles[bus_j] - np.angle(y_row[bus_j]))
+                if bus_i == bus_j:
+                    # diagonal elements of J2 (dP/dV)
+                    J2[i, j] = sum(
+                        self.voltages[b] * abs(y_row[b]) * np.cos(delta_i - self.angles[b] - np.angle(y_row[b]))
+                        for b in all_bus) + vi * abs(y_row[bus_i]) * np.cos(np.angle(y_row[bus_i]))
+
+                    # diagonal elements of J4 (dQ/dV)
+                    if is_pq_bus:
+                        qi_idx = pq_buses.index(bus_i)
+                        J4[qi_idx, j] = sum(
+                            self.voltages[b] * abs(y_row[b]) * np.sin(delta_i - self.angles[b] - np.angle(y_row[b]))
+                            for b in all_bus) - vi * abs(y_row[bus_i]) * np.sin(np.angle(y_row[bus_i]))
+                else:
+                    # off-diagonal elements of J2 (dP/dV)
+                    J2[i, j] = vi * abs(y_row[bus_j]) * np.cos(delta_i - delta_j - theta_ij)
+
+                    # off-diagonal elements of J4 (dQ/dV)
+                    if is_pq_bus:
+                        qi_idx = pq_buses.index(bus_i)
+                        J4[qi_idx, j] = vi * abs(y_row[bus_j]) * np.sin(delta_i - delta_j - theta_ij)
 
         # Construct full Jacobian matrix
         J_top = np.hstack((J1, J2))
@@ -104,13 +136,13 @@ if __name__ == "__main__":
     circuit1 = Circuit("Test Circuit")
 
     # ADD BUSES
-    circuit1.add_bus("Bus1", 230)
+    circuit1.add_bus("Bus1", 20)
     circuit1.add_bus("Bus2", 230)
     circuit1.add_bus("Bus3", 230)
     circuit1.add_bus("Bus4", 230)
     circuit1.add_bus("Bus5", 230)
     circuit1.add_bus("Bus6", 230)
-    circuit1.add_bus("Bus7", 230)
+    circuit1.add_bus("Bus7", 18)
 
     # ADD TRANSMISSION LINES
     circuit1.add_conductor("Partridge", 0.642, 0.0217, 0.385, 460)
