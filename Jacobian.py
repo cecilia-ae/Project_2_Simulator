@@ -177,23 +177,44 @@ if __name__ == "__main__":
             print(f"      ΔQ = {mismatches[index]:.4f}")
             index += 1
 
+
     jacobian = Jacobian(solution)
     J = jacobian.calc_jacobian()
 
-    # Print jacobian matrix with bus labels
+    # Print Jacobian matrix with bus labels
     print("\nJacobian Matrix:")
-
-    # bus labels list
+    # Extract the bus lists needed for labeling
     bus_list = list(circuit1.buses.keys())
     pv_pq_buses = [b for b in bus_list if circuit1.buses[b].bus_type in ["PV Bus", "PQ Bus"]]
     pq_buses = [b for b in bus_list if circuit1.buses[b].bus_type == "PQ Bus"]
-    bus_labels = pv_pq_buses + pq_buses
 
-    # header with bus labels
-    print("     ", " | ".join([f"{label: <10}" for label in bus_labels]))
+    # Create row and column labels
+    row_labels = []
+    for bus in pv_pq_buses:
+        row_labels.append(f"∂P {bus}")
+    for bus in pq_buses:
+        row_labels.append(f"∂Q {bus}")
 
-    # prnit each row with corresponding bus labels
-    for i, row in enumerate(J):
-        row_str = f"{bus_labels[i]: <5} "  # Label for the row
-        row_str += " | ".join([f"{val:10.4f}" for val in row])  # Values in the row
-        print(row_str)
+    col_labels = []
+    for bus in pv_pq_buses:
+        col_labels.append(f"∂δ {bus}")
+    for bus in pq_buses:
+        col_labels.append(f"∂V {bus}")
+
+    # Print Jacobian matrix with labels
+    print("\nJacobian Matrix:")
+
+    # Calculate max width for row labels
+    row_width = max(len(label) for label in row_labels) + 1
+    col_width = 12
+
+    print(" " * row_width, end="")
+    for col in col_labels:
+        print(f"{col:^{col_width}}", end="")
+    print()
+
+    for i, row_label in enumerate(row_labels):
+        print(f"{row_label:{row_width}}", end="")
+        for j in range(J.shape[1]):
+            print(f"{J[i, j]:^{col_width}.6f}", end="")
+        print()

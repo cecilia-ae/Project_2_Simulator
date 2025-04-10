@@ -151,22 +151,42 @@ class Circuit:
         if name in self.loads:
             raise ValueError(f"Load '{name}' already exists.")
         self.loads[name] = Load(name, bus, real_power, reactive_power)
+
+
     def calc_ybus(self):
         # set up the zeroes data frame
-        busnames = list(self.buses.keys())  # list of bus names
+        busnames = list(self.buses.keys())
         N = len(busnames)
         ybus = pd.DataFrame(np.zeros((N, N), dtype=complex), index=busnames, columns=busnames)
 
-        for tline_name, tline in self.transmissionlines.items():
+        # add contributions from all transmission lines
+        for tline in self.transmissionlines.values():
             bus1_name = tline.bus1.name
             bus2_name = tline.bus2.name
-
             yprim = tline.yprim
 
+            # Add diagonal elements
             ybus.loc[bus1_name, bus1_name] += yprim.loc[bus1_name, bus1_name]
             ybus.loc[bus2_name, bus2_name] += yprim.loc[bus2_name, bus2_name]
+
+            # Add off-diagonal elements
             ybus.loc[bus1_name, bus2_name] += yprim.loc[bus1_name, bus2_name]
             ybus.loc[bus2_name, bus1_name] += yprim.loc[bus2_name, bus1_name]
+
+        # add contributions from all transformers
+        for xfmr in self.transformers.values():
+            bus1_name = xfmr.bus1.name
+            bus2_name = xfmr.bus2.name
+            yprim = xfmr.yprim
+
+            # Add diagonal elements
+            ybus.loc[bus1_name, bus1_name] += yprim.loc[bus1_name, bus1_name]
+            ybus.loc[bus2_name, bus2_name] += yprim.loc[bus2_name, bus2_name]
+
+            # Add off-diagonal elements
+            ybus.loc[bus1_name, bus2_name] += yprim.loc[bus1_name, bus2_name]
+            ybus.loc[bus2_name, bus1_name] += yprim.loc[bus2_name, bus1_name]
+
 
         self.ybus = ybus
 
@@ -177,13 +197,13 @@ if __name__ == "__main__":
         circuit1 = Circuit("Test Circuit")
 
         # ADD BUSES
-        circuit1.add_bus("Bus1", 230)
+        circuit1.add_bus("Bus1", 20)
         circuit1.add_bus("Bus2", 230)
         circuit1.add_bus("Bus3", 230)
         circuit1.add_bus("Bus4", 230)
         circuit1.add_bus("Bus5", 230)
         circuit1.add_bus("Bus6", 230)
-        circuit1.add_bus("Bus7", 230)
+        circuit1.add_bus("Bus7", 18)
 
         # ADD TRANSMISSION LINES
         circuit1.add_conductor("Partridge", 0.642, 0.0217, 0.385, 460)
@@ -198,30 +218,23 @@ if __name__ == "__main__":
         circuit1.add_tline("Line6", "Bus4", "Bus5", "Bundle1", "Geometry1", 35)
 
         # ADD TRANSMORMERS
-        circuit1.add_transformer("T1", "Bus1", "Bus2", 125,8.5, 10)
-        circuit1.add_transformer("T2", "Bus6", "Bus7", 200,10.5, 12)
+        circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10)
+        circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12)
 
         # ADD GENERATORS
-        circuit1.add_generator("G1", "Bus1", 230, 100)
-        circuit1.add_generator("G2", "Bus7", 20, 100)
-
-        # CHANGE SLACK BUS
-        circuit1.set_slack_bus("Bus7")
+        circuit1.add_generator("G1", "Bus1", 20, 100)
+        circuit1.add_generator("G2", "Bus7", 18, 200)
 
         # ADD LOAD
-        circuit1.add_load("L1", "Bus5", 200,100)
-
+        circuit1.add_load("L1", "Bus3", 110, 50)
+        circuit1.add_load("L2", "Bus4", 100, 70)
+        circuit1.add_load("L3", "Bus5", 100, 65)
 
         # PRINT CHECK
-        print(circuit1.generators["G1"].name, circuit1.generators["G1"].bus, circuit1.generators["G1"].voltage_setpoint, circuit1.generators["G1"].mw_setpoint)
-        print(circuit1.generators["G2"].name, circuit1.generators["G2"].bus, circuit1.generators["G2"].voltage_setpoint, circuit1.generators["G2"].mw_setpoint)
-        print(circuit1.loads["L1"].name, circuit1.loads["L1"].bus, circuit1.loads["L1"].real_power, circuit1.loads["L1"].reactive_power)
-        print(f"Bus1 type: {circuit1.buses['Bus1'].bus_type}")  # Should print "PV Bus"
+        print(f"Bus1 type: {circuit1.buses['Bus1'].bus_type}")  # Should print "Slack Bus"
         print(f"Bus7 type: {circuit1.buses['Bus7'].bus_type}")  # Should print "PV Bus"
 
         # YBUS CHECK
         circuit1.calc_ybus()
 
         print("Ybus DataFrame:\n", circuit1.ybus)
-        print("Ybus Index:", circuit1.ybus.index)
-        print("Ybus Columns:", circuit1.ybus.columns)
