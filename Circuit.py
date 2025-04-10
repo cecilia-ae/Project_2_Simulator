@@ -109,9 +109,8 @@ class Circuit:
 
         self.transmissionlines[name] = TransmissionLine(name, bus1, bus2, bundle, geometry, length)
 
-    def add_generator(self, name: str, bus: str, voltage_setpoint: float, mw_setpoint: float):
-
-        # add a generator to the circuit
+    def add_generator(self, name: str, bus: str, voltage_setpoint: float, mw_setpoint: float,
+                      x1pp: float = 0.12, x2: float = 0.14, x0: float = 0.05, grounding: str = "solid", rg: float = 0.0):
 
         if name in self.generators:
             raise ValueError(f"Generator '{name}' already exists.")
@@ -126,7 +125,9 @@ class Circuit:
         else:
             bus_obj.bus_type = "PV Bus"
 
-        self.generators[name] = Generator(name, bus_obj, voltage_setpoint, mw_setpoint)
+        self.generators[name] = Generator(name, bus_obj, voltage_setpoint, mw_setpoint,
+                                          x1pp=x1pp, x2=x2, x0=x0, grounding=grounding, rg=rg)
+
 
 
 
@@ -151,7 +152,6 @@ class Circuit:
         if name in self.loads:
             raise ValueError(f"Load '{name}' already exists.")
         self.loads[name] = Load(name, bus, real_power, reactive_power)
-
 
     def calc_ybus(self):
         # set up the zeroes data frame
@@ -188,53 +188,34 @@ class Circuit:
             ybus.loc[bus2_name, bus1_name] += yprim.loc[bus2_name, bus1_name]
 
 
+        # Add generator subtransient admittances for faulted buses
+        for gen in self.generators.values():
+            if hasattr(gen.bus, 'fault') and gen.bus.fault:
+                ybus.loc[gen.bus.name, gen.bus.name] += gen.get_subtransient_admittance()
+
         self.ybus = ybus
 
         return ybus
 
-if __name__ == "__main__":
-        #verify Ybus
-        circuit1 = Circuit("Test Circuit")
+    def calc_zbus(self):
+        if self.ybus is None or self.ybus.empty:
+            raise ValueError("Ybus must be calculated before Zbus.")
+        try:
+            zbus = pd.DataFrame(np.linalg.inv(self.ybus.values), index=self.ybus.index, columns=self.ybus.columns)
+            return zbus
+        except np.linalg.LinAlgError:
+            print("Error: Ybus matrix is singular and cannot be inverted.")
+            return None
 
-        # ADD BUSES
-        circuit1.add_bus("Bus1", 20)
-        circuit1.add_bus("Bus2", 230)
-        circuit1.add_bus("Bus3", 230)
-        circuit1.add_bus("Bus4", 230)
-        circuit1.add_bus("Bus5", 230)
-        circuit1.add_bus("Bus6", 230)
-        circuit1.add_bus("Bus7", 18)
 
-        # ADD TRANSMISSION LINES
-        circuit1.add_conductor("Partridge", 0.642, 0.0217, 0.385, 460)
-        circuit1.add_bundle("Bundle1", 2, 1.5, "Partridge")
-        circuit1.add_geometry("Geometry1", 0, 0, 18.5, 0, 37, 0)
 
-        circuit1.add_tline("Line1", "Bus2", "Bus4", "Bundle1", "Geometry1", 10)
-        circuit1.add_tline("Line2", "Bus2", "Bus3", "Bundle1", "Geometry1", 25)
-        circuit1.add_tline("Line3", "Bus3", "Bus5", "Bundle1", "Geometry1", 20)
-        circuit1.add_tline("Line4", "Bus4", "Bus6", "Bundle1", "Geometry1", 20)
-        circuit1.add_tline("Line5", "Bus5", "Bus6", "Bundle1", "Geometry1", 10)
-        circuit1.add_tline("Line6", "Bus4", "Bus5", "Bundle1", "Geometry1", 35)
 
-        # ADD TRANSMORMERS
-        circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10)
-        circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12)
 
-        # ADD GENERATORS
-        circuit1.add_generator("G1", "Bus1", 20, 100)
-        circuit1.add_generator("G2", "Bus7", 18, 200)
 
-        # ADD LOAD
-        circuit1.add_load("L1", "Bus3", 110, 50)
-        circuit1.add_load("L2", "Bus4", 100, 70)
-        circuit1.add_load("L3", "Bus5", 100, 65)
 
-        # PRINT CHECK
-        print(f"Bus1 type: {circuit1.buses['Bus1'].bus_type}")  # Should print "Slack Bus"
-        print(f"Bus7 type: {circuit1.buses['Bus7'].bus_type}")  # Should print "PV Bus"
 
-        # YBUS CHECK
-        circuit1.calc_ybus()
 
-        print("Ybus DataFrame:\n", circuit1.ybus)
+
+
+
+
