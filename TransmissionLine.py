@@ -23,11 +23,23 @@ class TransmissionLine:
 
         self.zbase, self.ybase = self.calc_base_values()
 
+        # positive-sequence parameters
         self.Rpu = self.calc_Rpu()
         self.Xpu = self.calc_Xpu()
         self.Bpu = self.calc_Bpu()
 
+        # Negative-sequence (same as pos)
+        self.R2pu = self.Rpu
+        self.X2pu = self.Xpu
+
+        # zero-sequence (overhead approximation: 3x positive ---- need to ask prof if correct)
+        self.R0pu = 3 * self.Rpu
+        self.X0pu = 3 * self.Xpu
+
+        # Admittance matrices
         self.yprim = self.calc_yprim()
+        self.yprim_neg = self.calc_yprim_negative_sequence()
+        self.yprim_zero = self.calc_yprim_zero_sequence()
 
     def calc_base_values(self):
 
@@ -87,7 +99,7 @@ class TransmissionLine:
 
         yshunt = complex(G, self.Bpu)
 
-        # Primitive admittance matrix (2x2 for a single line)
+        # primitive admittance matrix (2x2 for a single line)
         Y_prim = pd.DataFrame(
             [[yseries + yshunt / 2, -1*yseries],
              [-1*yseries, yseries + yshunt/ 2]],
@@ -96,6 +108,33 @@ class TransmissionLine:
         )
 
         return Y_prim
+
+    def calc_yprim_negative_sequence(self):
+        z = complex(self.R2pu, self.X2pu)
+
+        y = 1 / z
+        Y_prim_neg = pd.DataFrame(
+            [[y, -y],
+             [-y, y]],
+            index=[self.bus1.name, self.bus2.name],
+            columns=[self.bus1.name, self.bus2.name]
+        )
+
+        return Y_prim_neg
+
+    def calc_yprim_zero_sequence(self):
+        z = complex(self.R0pu, self.X0pu)
+
+        y = 1 / z
+
+        Y_prim_zero= pd.DataFrame(
+            [[y, -y],
+             [-y, y]],
+            index=[self.bus1.name, self.bus2.name],
+            columns=[self.bus1.name, self.bus2.name]
+        )
+
+        return Y_prim_zero
 
 if __name__ == "__main__":
 
@@ -117,3 +156,8 @@ if __name__ == "__main__":
     print(line1.Rpu, line1.Xpu, line1.Bpu)
 
     print(line1.yprim)
+
+    print(line1.yprim_neg)
+
+    print(line1.yprim_zero)
+
