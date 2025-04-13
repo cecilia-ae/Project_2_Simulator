@@ -36,7 +36,7 @@ class TransmissionLine:
         self.R0pu = 3 * self.Rpu
         self.X0pu = 3 * self.Xpu
 
-        # Admittance matrices
+        # admittance matrices
         self.yprim = self.calc_yprim()
         self.yprim_neg = self.calc_yprim_negative_sequence()
         self.yprim_zero = self.calc_yprim_zero_sequence()

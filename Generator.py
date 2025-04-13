@@ -3,7 +3,6 @@
 # Milestone 5
 
 from Bus import Bus
-import numpy as np
 
 class Generator:
 
@@ -19,7 +18,7 @@ class Generator:
         self.x0 = 0.05 # zero-sequence subtransient reactance
 
         # grounding configuration
-        self.grounding_impedance = grounding_impedance #default of zero which represents a solid ground
+        self.Zn = grounding_impedance #default of zero which represents a solid ground
         self.is_grounded = is_grounded
 
     def y_prim_negative_sequence(self) -> complex:
@@ -33,7 +32,7 @@ class Generator:
         # primitive admittance (Y = 1 / (jX0 + 3*Zn)) for the zero-sequence network.
         # if generator is ungrounded, return 0
 
-        Yprim0 = 1 / (1j * self.x0 + 3 * self.grounding_impedance)
+        Yprim0 = 1 / (1j * self.x0 + 3 * self.Zn)
 
         if not self.is_grounded:
             return 0 + 0j
