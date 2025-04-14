@@ -7,7 +7,7 @@ class Solution:
 
     def __init__(self, circuit: Circuit):
         self.circuit = circuit
-        self.ybus = circuit.ybus  # Ybus from Circuit
+        self.ybus = circuit.calc_ybus() # Ybus from Circuit
         self.voltages, self.angles = self.get_voltages()  # voltage & angles in p.u. and radians
 
     def get_voltages(self):
@@ -182,6 +182,41 @@ class Solution:
     def power_flow(self, tolerance=0.001, max_iterations=50):
         return self.newton_raphson(tolerance=tolerance, max_iterations=max_iterations)
 
+    def fault_study(self):
+        print("\nSYMMETRICAL FAULT ANALYSIS")
+        print("=" * 60)
+        print("Select fault type:")
+        print("1. Three-phase fault")
+        print("2. Line-to-ground fault")
+        print("3. Line-to-line fault")
+        print("4. Double-line-to-ground fault")
+
+        fault_type = input("Enter choice (1-4): ")
+
+        if fault_type == "1":
+            self.perform_three_phase_fault()
+        elif fault_type == "2":
+            self.perform_line_to_ground_fault()
+        elif fault_type == "3":
+            self.perform_line_to_line_fault()
+        elif fault_type == "4":
+            self.perform_double_line_to_ground_fault()
+        else:
+            print("Invalid choice. Please select 1-4.")
+
+    def perform_three_phase_fault(self):
+        print(">>> Performing symmetrical 3-phase fault analysis.")
+
+    def perform_line_to_ground_fault(self):
+        print(">>> Performing line-to-ground fault analysis.")
+
+    def perform_line_to_line_fault(self):
+        print(">>> Performing line-to-line fault analysis.")
+
+    def perform_double_line_to_ground_fault(self):
+        print(">>> Performing double-line-to-ground fault analysis.")
+
+
 
 if __name__ == "__main__":
     # create test circuit
@@ -209,19 +244,17 @@ if __name__ == "__main__":
     circuit1.add_tline("Line6", "Bus4", "Bus5", "Bundle1", "Geometry1", 35)
 
     # ADD TRANSFORMERS
-    circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10)
-    circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12)
+    circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10, "y-y", 0.05)
+    circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12, "y-y", 0.05)
 
     # ADD GENERATORS
-    circuit1.add_generator("G1", "Bus1", 20, 100)
-    circuit1.add_generator("G2", "Bus7", 18, 200)
+    circuit1.add_generator("G1", "Bus1", 20, 100, 0.05, True)
+    circuit1.add_generator("G2", "Bus7", 18, 200, 0.05, True)
 
     # ADD LOAD
     circuit1.add_load("L1", "Bus3", 110, 50)
     circuit1.add_load("L2", "Bus4", 100, 70)
     circuit1.add_load("L3", "Bus5", 100, 65)
-
-    circuit1.calc_ybus()
 
     print(f"Bus1 type: {circuit1.buses['Bus1'].bus_type}")  # Should print "Slack Bus"
     print(f"Bus2 type: {circuit1.buses['Bus2'].bus_type}")  # Should print "PQ Bus"
@@ -229,8 +262,9 @@ if __name__ == "__main__":
 
     solution = Solution(circuit1)
 
-
     solution.power_flow()
+
+    solution.fault_study()
 
 
 

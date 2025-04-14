@@ -155,9 +155,10 @@ if __name__ == "__main__":
 
     print(line1.Rpu, line1.Xpu, line1.Bpu)
 
+    print("\nPositive Sequence Yprim:")
     print(line1.yprim)
-
+    print("\nNegative Sequence Yprim:")
     print(line1.yprim_neg)
-
+    print("\nZero Sequence Yprim:")
     print(line1.yprim_zero)
 

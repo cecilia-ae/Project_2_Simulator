@@ -3,10 +3,11 @@
 # Milestone 5
 
 from Bus import Bus
+import pandas as pd
 
 class Generator:
 
-    def __init__(self,name: str, bus: Bus, voltage_setpoint: float, mw_setpoint: float, grounding_impedance: complex = 0 + 0j, is_grounded: bool = True):
+    def __init__(self,name: str, bus: Bus, voltage_setpoint: float, mw_setpoint: float, grounding_impedance: float, is_grounded: bool = True):
         self.name = name
         self.bus = bus
         self.voltage_setpoint = voltage_setpoint
@@ -21,10 +22,21 @@ class Generator:
         self.Zn = grounding_impedance #default of zero which represents a solid ground
         self.is_grounded = is_grounded
 
+    def y_prim_positive_sequence(self):
+        # primitive admittance (Y = 1 / jX1) for the positive-sequence network
+
+        Y = 1 / (1j * self.x1)
+
+        Yprim1 = pd.DataFrame([[Y]], index=[self.bus.name], columns=[self.bus.name])
+
+        return Yprim1
+
     def y_prim_negative_sequence(self) -> complex:
             # primitive admittance (Y = 1 / jX2) for the negative-sequence network.
 
-            Yprim2 = 1 / (1j * self.x2)
+            Y = 1 / (1j * self.x2)
+
+            Yprim2 = pd.DataFrame([[Y]], index=[self.bus.name], columns=[self.bus.name])
 
             return Yprim2
 
@@ -32,8 +44,38 @@ class Generator:
         # primitive admittance (Y = 1 / (jX0 + 3*Zn)) for the zero-sequence network.
         # if generator is ungrounded, return 0
 
-        Yprim0 = 1 / (1j * self.x0 + 3 * self.Zn)
+        Y= 1 / (1j * self.x0 + 3 * self.Zn)
 
         if not self.is_grounded:
-            return 0 + 0j
+            Y = 0 + 0j
+
+        Yprim0 = pd.DataFrame([[Y]], index=[self.bus.name], columns=[self.bus.name])
+
         return Yprim0
+
+if __name__ == "__main__":
+
+        Bus1 = Bus("Bus1", 13.8)
+
+        # Grounded generator
+        gen1 = Generator("G1", Bus1, 20, 100, 0.05, True)
+
+        print("\nGrounded Generator:")
+        print("\nPositive Sequence Yprim:")
+        print(gen1.y_prim_positive_sequence())
+        print("\nNegative Sequence Yprim:")
+        print(gen1.y_prim_negative_sequence())
+        print("\nZero Sequence Yprim:")
+        print(gen1.y_prim_zero_sequence())
+
+
+        # Ungrounded generator
+        gen2 = Generator("G2", Bus1, 18, 200, 0.05, False)
+
+        print("\nUngrounded Generator:")
+        print("\nPositive Sequence Yprim:")
+        print(gen2.y_prim_positive_sequence())
+        print("\nNegative Sequence Yprim:")
+        print(gen2.y_prim_negative_sequence())
+        print("\nZero Sequence Yprim:")
+        print(gen2.y_prim_zero_sequence())

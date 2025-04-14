@@ -98,10 +98,10 @@ class Transformer:
 # Validation
 if __name__ == "__main__":
     # define bus1 and bus2 before
-    bus1 = Bus("Bus1", 20)
-    bus2 = Bus("Bus2",230)
+    Bus1 = Bus("Bus1", 20)
+    Bus2 = Bus("Bus2",230)
 
-    transformer1 = Transformer("T1", bus1, bus2, 100, 8.5, 10)
+    transformer1 = Transformer("T1", Bus1, Bus2, 125, 8.5, 10, "y-y", 0.05)
 
     print("Transformer Name:", transformer1.name)
     print("Connected Buses:", transformer1.bus1, "<-->", transformer1.bus2)
@@ -109,5 +109,12 @@ if __name__ == "__main__":
     print("Per-unit Resistance (Rpu):", transformer1.Rpusys)
     print("Per-unit Reactance (Xpu):", transformer1.Xpusys)
     print("Series Admittance (Yseries):", transformer1.Yseries)
-    print("Yprim matrix:")
+
+    print("\nPositive Sequence Yprim:")
     print(transformer1.yprim)
+
+    print("\nNegative Sequence Yprim:")
+    print(transformer1.yprim_neg)
+
+    print("\nZero Sequence Yprim:")
+    print(transformer1.yprim_zero)
