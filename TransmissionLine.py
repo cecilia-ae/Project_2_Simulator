@@ -31,10 +31,12 @@ class TransmissionLine:
         # Negative-sequence (same as pos)
         self.R2pu = self.Rpu
         self.X2pu = self.Xpu
+        self.B2pu = self.Bpu
 
-        # zero-sequence (overhead approximation: 3x positive ---- need to ask prof if correct)
-        self.R0pu = 3 * self.Rpu
-        self.X0pu = 3 * self.Xpu
+        # zero-sequence (overhead approximation: 2.5 pos for X and R and same B)
+        self.R0pu = 2.5 * self.Rpu
+        self.X0pu = 2.5 * self.Xpu
+        self.B0pu = self.Bpu
 
         # admittance matrices
         self.yprim = self.calc_yprim()
@@ -110,12 +112,17 @@ class TransmissionLine:
         return Y_prim
 
     def calc_yprim_negative_sequence(self):
-        z = complex(self.R2pu, self.X2pu)
+        G = 0
 
-        y = 1 / z
+        zseries = complex(self.R2pu, self.X2pu)
+        yseries = 1/zseries
+
+        yshunt = complex(G, self.B2pu)
+
+        # primitive admittance matrix (2x2 for a single line)
         Y_prim_neg = pd.DataFrame(
-            [[y, -y],
-             [-y, y]],
+            [[yseries + yshunt / 2, -1*yseries],
+             [-1*yseries, yseries + yshunt/ 2]],
             index=[self.bus1.name, self.bus2.name],
             columns=[self.bus1.name, self.bus2.name]
         )
@@ -123,13 +130,17 @@ class TransmissionLine:
         return Y_prim_neg
 
     def calc_yprim_zero_sequence(self):
-        z = complex(self.R0pu, self.X0pu)
+        G = 0
 
-        y = 1 / z
+        zseries = complex(self.R0pu, self.X0pu)
+        yseries = 1/zseries
 
-        Y_prim_zero= pd.DataFrame(
-            [[y, -y],
-             [-y, y]],
+        yshunt = complex(G, self.B0pu)
+
+        # primitive admittance matrix (2x2 for a single line)
+        Y_prim_zero = pd.DataFrame(
+            [[yseries + yshunt / 2, -1*yseries],
+             [-1*yseries, yseries + yshunt/ 2]],
             index=[self.bus1.name, self.bus2.name],
             columns=[self.bus1.name, self.bus2.name]
         )

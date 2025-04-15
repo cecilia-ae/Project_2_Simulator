@@ -7,7 +7,7 @@ class Solution:
 
     def __init__(self, circuit: Circuit):
         self.circuit = circuit
-        self.ybus = circuit.calc_ybus_pos_sequence() # Ybus from Circuit
+        self.ybus = circuit.calc_ybus() # Ybus from Circuit
         self.voltages, self.angles = self.get_voltages()  # voltage & angles in p.u. and radians
 
     def get_voltages(self):

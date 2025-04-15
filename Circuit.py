@@ -32,7 +32,8 @@ class Circuit:
         self.loads: Dict[str, Load] = {}
 
         self.slack_bus = None
-        self.ybus = self.calc_ybus_pos_sequence()
+        self.ybus = self.calc_ybus()
+        self.ybus_pos = self.calc_ybus_pos_sequence()
         self.ybus_neg = self.calc_ybus_neg_sequence()
         self.ybus_zero = self.calc_ybus_zero_sequence()
         self.zbus_pos, self.zbus_neg, self.zbus_zero = self.calc_sequence_zbuses()
@@ -132,8 +133,6 @@ class Circuit:
 
         self.generators[name] = Generator(name, bus_obj, voltage_setpoint, mw_setpoint, grounding_impedance, is_grounded)
 
-
-
     def set_slack_bus(self, bus_name: str):
         if bus_name not in self.buses:
             raise ValueError(f"Bus '{bus_name}' does not exist in the circuit.")
@@ -155,6 +154,32 @@ class Circuit:
         if name in self.loads:
             raise ValueError(f"Load '{name}' already exists.")
         self.loads[name] = Load(name, bus, real_power, reactive_power)
+
+    def calc_ybus(self):
+        busnames = list(self.buses.keys())
+        N = len(busnames)
+        ybus = pd.DataFrame(np.zeros((N, N), dtype=complex), index=busnames, columns=busnames)
+
+        for line in self.transmissionlines.values():
+            b1, b2 = line.bus1.name, line.bus2.name
+            y = line.yprim
+            ybus.loc[b1, b1] += y.loc[b1, b1]
+            ybus.loc[b2, b2] += y.loc[b2, b2]
+            ybus.loc[b1, b2] += y.loc[b1, b2]
+            ybus.loc[b2, b1] += y.loc[b2, b1]
+
+        for xfmr in self.transformers.values():
+            b1, b2 = xfmr.bus1.name, xfmr.bus2.name
+            y = xfmr.yprim
+            ybus.loc[b1, b1] += y.loc[b1, b1]
+            ybus.loc[b2, b2] += y.loc[b2, b2]
+            ybus.loc[b1, b2] += y.loc[b1, b2]
+            ybus.loc[b2, b1] += y.loc[b2, b1]
+
+
+        self.ybus = ybus
+        return ybus
+
 
     def calc_ybus_pos_sequence(self):
         busnames = list(self.buses.keys())
@@ -181,7 +206,7 @@ class Circuit:
             b = gen.bus.name
             ybus_pos.loc[b, b] += gen.y_prim_positive_sequence().loc[b, b]
 
-        self.ybus = ybus_pos
+        self.ybus_pos = ybus_pos
         return ybus_pos
 
     def calc_ybus_neg_sequence(self):
@@ -281,12 +306,13 @@ if __name__ == "__main__":
         circuit1.add_tline("Line6", "Bus4", "Bus5", "Bundle1", "Geometry1", 35)
 
         # ADD TRANSMORMERS
-        circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10, "y-y", 0.05)
-        circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12, "y-y", 0.05)
+        circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10, "delta-y", 1)
+        circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12, "delta-y", 999999)
 
         # ADD GENERATORS
-        circuit1.add_generator("G1", "Bus1", 20, 100, 0.05, True)
-        circuit1.add_generator("G2", "Bus7", 18, 200, 0.05, True)
+        circuit1.add_generator("G1", "Bus1", 20, 100, 0, True)
+        circuit1.add_generator("G2", "Bus7", 18, 200, 1, True)
+
         # ADD LOAD
         circuit1.add_load("L1", "Bus3", 110, 50)
         circuit1.add_load("L2", "Bus4", 100, 70)
@@ -297,6 +323,7 @@ if __name__ == "__main__":
         print(f"Bus7 type: {circuit1.buses['Bus7'].bus_type}")  # Should print "PV Bus"
 
         # YBUS CHECK
+        circuit1.calc_ybus()
         circuit1.calc_ybus_pos_sequence()
         circuit1.calc_ybus_neg_sequence()
         circuit1.calc_ybus_zero_sequence()
@@ -305,7 +332,7 @@ if __name__ == "__main__":
         # Recalculate all sequence Ybuses and Zbuses
 
 
-        print("Ybus Positive Sequence:\n", circuit1.ybus)
+        print("Ybus Positive Sequence:\n", circuit1.ybus_pos)
         print("\nYbus Negative Sequence:\n", circuit1.ybus_neg)
         print("\nYbus Zero Sequence:\n", circuit1.ybus_zero)
 

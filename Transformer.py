@@ -18,7 +18,7 @@ class Transformer:
         self.x_over_r_ratio = x_over_r_ratio
 
         self.connection_type = connection_type.upper()
-        self.Zn = grounding_impedance  # in per-unit
+        self.Zn = grounding_impedance  # in ohms - NEED TO MAKE IN PU
 
 
         # impedance and admittance values
@@ -66,42 +66,43 @@ class Transformer:
 
     def calc_yprim_zero(self):
         y = self.Yseries
-        zn = self.Zn if self.Zn != 0 else 1e-6  # avoid dividing by zero
+
+        # convert grounding impedance (ohms to pu)
+        zbase =  (SystemSettings.Sbase / self.power_rating) * (self.impedance_percent / 100 ) * np.exp(1j * np.arctan(self.x_over_r_ratio))
+        zn_pu = self.Zn / zbase if self.Zn != 0 else 1e-6
+
 
         if self.connection_type == "Y-Y":
-            # grounded on both sides
-            yg = 1 / (3 * zn)
+            yg = 1 / (3 * zn_pu)
             y11 = y + yg
             y22 = y + yg
             y12 = -y
         elif self.connection_type == "Y-DELTA":
-            # grounded Y side only
-            y11 = y + 1 / (3 * zn)
+            y11 = ( 1 / (3 * zn_pu) )
             y22 = 0
             y12 = 0
         elif self.connection_type == "DELTA-Y":
-            # grounded Y side only
             y11 = 0
-            y22 = y + 1 / (3 * zn)
+            y22 = ( 1 / (3 * zn_pu) )
             y12 = 0
         elif self.connection_type == "DELTA-DELTA":
-            # delta on both ends: no zero-sequence current
             y11 = y22 = y12 = 0
         else:
             raise ValueError(f"Invalid connection type: {self.connection_type}")
 
         yprim_zero = pd.DataFrame([[y11, -y12], [-y12, y22]],
-                            index=[self.bus1.name, self.bus2.name],
-                            columns=[self.bus1.name, self.bus2.name])
+                                  index=[self.bus1.name, self.bus2.name],
+                                  columns=[self.bus1.name, self.bus2.name])
         return yprim_zero
+
 
 # Validation
 if __name__ == "__main__":
     # define bus1 and bus2 before
-    Bus1 = Bus("Bus1", 20)
-    Bus2 = Bus("Bus2",230)
+    Bus6 = Bus("Bus6", 230)
+    Bus7 = Bus("Bus7",18)
 
-    transformer1 = Transformer("T1", Bus1, Bus2, 125, 8.5, 10, "y-y", 0.05)
+    transformer1 = Transformer("T2", Bus6, Bus7, 200, 10.5, 12, "delta-y", 999999)
 
     print("Transformer Name:", transformer1.name)
     print("Connected Buses:", transformer1.bus1, "<-->", transformer1.bus2)
