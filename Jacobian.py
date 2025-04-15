@@ -140,20 +140,20 @@ if __name__ == "__main__":
     circuit1.add_tline("Line5", "Bus5", "Bus6", "Bundle1", "Geometry1", 10)
     circuit1.add_tline("Line6", "Bus4", "Bus5", "Bundle1", "Geometry1", 35)
 
-    # ADD TRANSMORMERS
-    circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10)
-    circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12)
+    # ADD TRANSFORMERS
+    circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10, "y-y", 0.05)
+    circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12, "y-y", 0.05)
 
     # ADD GENERATORS
-    circuit1.add_generator("G1", "Bus1", 20, 100)
-    circuit1.add_generator("G2", "Bus7", 18, 200)
+    circuit1.add_generator("G1", "Bus1", 20, 100, 0.05, True)
+    circuit1.add_generator("G2", "Bus7", 18, 200, 0.05, True)
 
     # ADD LOAD
     circuit1.add_load("L1", "Bus3", 110, 50)
     circuit1.add_load("L2", "Bus4", 100, 70)
     circuit1.add_load("L3", "Bus5", 100,65)
 
-    circuit1.calc_ybus()
+    circuit1.calc_ybus_pos_sequence()
 
     solution = Solution(circuit1)
 
@@ -181,8 +181,6 @@ if __name__ == "__main__":
     jacobian = Jacobian(solution)
     J = jacobian.calc_jacobian()
 
-    # Print Jacobian matrix with bus labels
-    print("\nJacobian Matrix:")
     # Extract the bus lists needed for labeling
     bus_list = list(circuit1.buses.keys())
     pv_pq_buses = [b for b in bus_list if circuit1.buses[b].bus_type in ["PV Bus", "PQ Bus"]]

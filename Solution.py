@@ -153,9 +153,38 @@ class Solution:
                         q_index += 1
 
                 print("\nFinal Jacobian Matrix:")
-                for i_row in range(J.shape[0]):
-                    for j_col in range(J.shape[1]):
-                        print(f"{J[i_row, j_col]:>12.6f}", end="")
+
+                # Extract the bus lists needed for labeling
+                bus_list = list(self.circuit.buses.keys())
+                pv_pq_buses = [b for b in bus_list if self.circuit.buses[b].bus_type in ["PV Bus", "PQ Bus"]]
+                pq_buses = [b for b in bus_list if self.circuit.buses[b].bus_type == "PQ Bus"]
+
+                # Create row and column labels
+                row_labels = []
+                for bus in pv_pq_buses:
+                    row_labels.append(f"∂P {bus}")
+                for bus in pq_buses:
+                    row_labels.append(f"∂Q {bus}")
+
+                col_labels = []
+                for bus in pv_pq_buses:
+                    col_labels.append(f"∂δ {bus}")
+                for bus in pq_buses:
+                    col_labels.append(f"∂V {bus}")
+
+                # Calculate max width for row labels
+                row_width = max(len(label) for label in row_labels) + 1
+                col_width = 12
+
+                print(" " * row_width, end="")
+                for col in col_labels:
+                    print(f"{col:^{col_width}}", end="")
+                print()
+
+                for i, row_label in enumerate(row_labels):
+                    print(f"{row_label:{row_width}}", end="")
+                    for j in range(J.shape[1]):
+                        print(f"{J[i, j]:^{col_width}.6f}", end="")
                     print()
 
                 return True
@@ -202,7 +231,7 @@ class Solution:
         elif fault_type == "4":
             self.perform_double_line_to_ground_fault()
         else:
-            print("Invalid choice. Please select 1-4.")
+            print("Invalid choice. Please run again and select 1-4.")
 
     def perform_three_phase_fault(self):
         print(">>> Performing symmetrical 3-phase fault analysis.")
