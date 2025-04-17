@@ -153,7 +153,7 @@ class Circuit:
 
         if name in self.loads:
             raise ValueError(f"Load '{name}' already exists.")
-        self.loads[name] = Load(name, bus, real_power, reactive_power)
+        self.loads[name] = Load(name, self.buses[bus], real_power, reactive_power)
 
     def calc_ybus(self):
         busnames = list(self.buses.keys())
@@ -206,6 +206,10 @@ class Circuit:
             b = gen.bus.name
             ybus_pos.loc[b, b] += gen.y_prim_positive_sequence().loc[b, b]
 
+        for load in self.loads.values():
+            b = load.bus.name
+            ybus_pos.loc[b, b] += load.y_prim().loc[b, b]
+
         self.ybus_pos = ybus_pos
         return ybus_pos
 
@@ -233,6 +237,10 @@ class Circuit:
         for gen in self.generators.values():
             b = gen.bus.name
             ybus_neg.loc[b, b] += gen.y_prim_negative_sequence().loc[b, b]
+
+        for load in self.loads.values():
+            b = load.bus.name
+            ybus_neg.loc[b, b] += load.y_prim().loc[b, b]
 
         self.ybus_neg = ybus_neg
         return ybus_neg
@@ -262,15 +270,15 @@ class Circuit:
             b = gen.bus.name
             ybus_zero.loc[b, b] += gen.y_prim_zero_sequence().loc[b, b]
 
+
         self.ybus_zero = ybus_zero
         return ybus_zero
 
     def calc_sequence_zbuses(self):
-
-        busnames = list(self.buses.keys())
+        busnames = list(self.buses.keys())  # DO NOT title-case them
 
         try:
-            self.zbus_pos = pd.DataFrame(np.linalg.inv(self.ybus.values), index=busnames, columns=busnames)
+            self.zbus_pos = pd.DataFrame(np.linalg.inv(self.ybus_pos.values), index=busnames, columns=busnames)
             self.zbus_neg = pd.DataFrame(np.linalg.inv(self.ybus_neg.values), index=busnames, columns=busnames)
             self.zbus_zero = pd.DataFrame(np.linalg.inv(self.ybus_zero.values), index=busnames, columns=busnames)
             return self.zbus_pos, self.zbus_neg, self.zbus_zero

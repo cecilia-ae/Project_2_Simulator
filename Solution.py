@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from Circuit import Circuit
 from SystemSettings import SystemSettings
 
@@ -9,6 +10,9 @@ class Solution:
         self.circuit = circuit
         self.ybus = circuit.calc_ybus() # Ybus from Circuit
         self.voltages, self.angles = self.get_voltages()  # voltage & angles in p.u. and radians
+        self.zbus_pos = circuit.zbus_pos
+        self.zbus_neg = circuit.zbus_neg
+        self.zbus_zero = circuit.zbus_zero
 
     def get_voltages(self):
         voltages = {}
@@ -212,8 +216,22 @@ class Solution:
         return self.newton_raphson(tolerance=tolerance, max_iterations=max_iterations)
 
     def fault_study(self):
-        print("\nSYMMETRICAL FAULT ANALYSIS")
+        print("\nFAULT ANALYSIS")
         print("=" * 60)
+
+        # Ensure latest Ybus and Zbus matrices are calculated
+        self.circuit.ybus = self.circuit.calc_ybus()
+        self.circuit.ybus_pos = self.circuit.calc_ybus_pos_sequence()
+        self.circuit.ybus_neg = self.circuit.calc_ybus_neg_sequence()
+        self.circuit.ybus_zero = self.circuit.calc_ybus_zero_sequence()
+        self.circuit.zbus_pos, self.circuit.zbus_neg, self.circuit.zbus_zero = self.circuit.calc_sequence_zbuses()
+
+        # Update the references in the Solution object
+        self.ybus = self.circuit.ybus
+        self.zbus_pos = self.circuit.zbus_pos
+        self.zbus_neg = self.circuit.zbus_neg
+        self.zbus_zero = self.circuit.zbus_zero
+
         print("Select fault type:")
         print("1. Three-phase fault")
         print("2. Line-to-ground fault")
@@ -221,30 +239,173 @@ class Solution:
         print("4. Double-line-to-ground fault")
 
         fault_type = input("Enter choice (1-4): ")
+        print("Available buses:", list(self.circuit.buses.keys()))
+        fault_bus = input("Enter the bus name where the fault occurs: ").strip()
+
+        if fault_bus not in self.circuit.buses:
+            print(f"Bus '{fault_bus}' not found in the system.")
+            return
+
+        v_prefault = 1.0  # assume 1.0 p.u. prefault voltage
 
         if fault_type == "1":
-            self.perform_three_phase_fault()
+            self.perform_symmetrical_fault(fault_bus, v_prefault)
         elif fault_type == "2":
-            self.perform_line_to_ground_fault()
+            self.perform_lg_fault(fault_bus, v_prefault)
         elif fault_type == "3":
-            self.perform_line_to_line_fault()
+            self.perform_ll_fault(fault_bus, v_prefault)
         elif fault_type == "4":
-            self.perform_double_line_to_ground_fault()
+            self.perform_llg_fault(fault_bus, v_prefault)
         else:
-            print("Invalid choice. Please run again and select 1-4.")
+            print("Invalid choice.")
 
-    def perform_three_phase_fault(self):
-        print(">>> Performing symmetrical 3-phase fault analysis.")
+    def perform_symmetrical_fault(self, bus, v_prefault):
+        print("\n>>> Performing symmetrical 3-phase fault analysis")
 
-    def perform_line_to_ground_fault(self):
-        print(">>> Performing line-to-ground fault analysis.")
+        if bus not in self.zbus_pos.keys():
+            raise ValueError(f"Fault bus {bus} not found in Zbus.")
 
-    def perform_line_to_line_fault(self):
-        print(">>> Performing line-to-line fault analysis.")
+        Znn = self.zbus_pos.loc[bus, bus]
+        if Znn == 0:
+            raise ZeroDivisionError("Znn is zero, can't compute fault current.")
 
-    def perform_double_line_to_ground_fault(self):
-        print(">>> Performing double-line-to-ground fault analysis.")
+        If = v_prefault / Znn
 
+        print(f"\nSubtransient fault current at {bus}: "
+              f"{If.real:.4f} ∠{np.angle(If, deg=True):.2f}° (in p.u.)")
+
+        voltages_after_fault = {}
+        for bus_k in self.zbus_pos.index:
+            Zkn = self.zbus_pos.loc[bus_k, bus]
+            Vk = (1 - Zkn/Znn) * v_prefault
+            voltages_after_fault[bus_k] = Vk
+            print(f"Post-fault voltage at {bus_k}: {Vk.real:.4f} ∠{np.angle(Vk, deg=True):.2f}° (in p.u.)")
+
+    def perform_lg_fault(self, bus, v_prefault):
+        print("\n>>> Performing line‑to‑ground (LG) fault analysis")
+
+        # Z self‑impedances of the faulted bus
+        Z1_nn = self.zbus_pos.loc[bus, bus].imag
+        Z2_nn = self.zbus_neg.loc[bus, bus].imag
+        Z0_nn = self.zbus_zero.loc[bus, bus].imag
+
+        # Fault current (bolted fault → Z_f = 0)
+        I_f = v_prefault / (Z1_nn + Z2_nn + Z0_nn)
+        print(f"\nFault current at {bus}: {I_f:.4f} p.u.")
+
+        # Sequence currents (all equal for LG fault)
+        I1 = I2 = I0 = I_f
+
+        V_post = {}  # total phase‑to‑neutral voltages after the fault
+        V1_bus = {}
+        V2_bus = {}
+        V0_bus = {}
+
+        for k in self.circuit.buses:  # every bus in the network
+            Z1_kn = self.zbus_pos.loc[k, bus].imag
+            Z2_kn = self.zbus_neg.loc[k, bus].imag
+            Z0_kn = self.zbus_zero.loc[k, bus].imag
+
+            V1_k = v_prefault - Z1_kn * I1
+            V2_k = -1* Z2_kn * I2
+            V0_k = -1* Z0_kn * I0
+
+            V1_bus[k] = V1_k
+            V2_bus[k] = V2_k
+            V0_bus[k] = V0_k
+            V_post[k] = V0_k + V1_k + V2_k  # phase voltage (a‑phase)
+
+        print("\nPost‑fault sequence voltages (in p.u.):")
+        print(f"{'Bus':4s}  {'V0':>10s}  {'V1':>10s}  {'V2':>10s}")
+        for k in self.circuit.buses:
+            print(f"{k:4s}  {V0_bus[k].real:10.4f}  {V1_bus[k].real:10.4f}  {V2_bus[k].real:10.4f}")
+
+        print("\nPost‑fault Phase‑to‑Neutral voltages:")
+        for k, Vk in V_post.items():
+            print(f"{k:4s}: {Vk.real:.4f} p.u.")
+
+    def perform_ll_fault(self, bus, v_prefault):
+        print("\n>>> Performing line‑to‑line fault analysis")
+
+        # self.zbus_pos, self.zbus_neg already use canonical bus names
+        z1_nn = self.zbus_pos.loc[bus, bus].imag  # Z1nn
+        z2_nn = self.zbus_neg.loc[bus, bus].imag  # Z2nn
+
+        I1 = v_prefault / (z1_nn + z2_nn)  # sequence current
+        I2 = -I1
+        If = np.sqrt(3) * abs(I1)  # line current magnitude
+
+        print(f"\nFault current at {bus}: {If:.4f} p.u.")
+
+        V_post = {}  # phase‑A voltages after the fault
+        print("\nSequence voltages at each bus:")
+        for k in self.circuit.buses:  # iterate over bus names
+            Z1_kn = self.zbus_pos.loc[k, bus].imag  # Z1kn
+            Z2_kn = self.zbus_neg.loc[k, bus].imag  # Z2kn
+
+            V1_k = v_prefault - I1 * Z1_kn
+            V2_k = -I2 * Z2_kn  # =  I1 * Z2_kf
+            V0_k = 0
+
+            Va_k = V0_k + V1_k + V2_k
+            V_post[k] = Va_k
+
+            if k == bus:
+                print(f"{k}: V0 = {V0_k:.4f}, "
+                      f"V1 = {V1_k:.4f}, V2 = {V2_k:.4f}")
+            else:
+                # on unfaulted buses V0=0 , V2 ≠ 0 in general
+                print(f"{k}: V0 = 0.0000, V1 = {V1_k:.4f}, V2 = {V2_k:.4f}")
+
+        print("\nPost‑fault phase‑to‑neutral voltages (real part):")
+        for k, Vk in V_post.items():
+            print(f"{k:4s}: {Vk.real:.4f} p.u.")
+
+    def perform_llg_fault(self, bus, v_prefault):
+        print("\n>>> Performing double line-to-ground (LLG) fault analysis")
+
+        # Self-impedances at the faulted bus
+        Z1_nn = self.zbus_pos.loc[bus, bus].imag
+        Z2_nn = self.zbus_neg.loc[bus, bus].imag
+        Z0_nn = self.zbus_zero.loc[bus, bus].imag
+
+        # Total impedance for the fault
+        z_total = (Z1_nn * Z2_nn + Z2_nn * Z0_nn + Z0_nn * Z1_nn) / (Z1_nn + Z2_nn + Z0_nn)
+
+        # Positive sequence fault current
+        I1 = v_prefault / z_total
+        I2 = I1
+        I0 = I1
+
+        print(f"\nFault Current at {bus}: {np.sqrt(3) * abs(I1):.4f} p.u.")
+
+        V_post = {}
+        V0_bus = {}
+        V1_bus = {}
+        V2_bus = {}
+
+        for k in self.circuit.buses:
+            Z1_kn = self.zbus_pos.loc[k, bus].imag
+            Z2_kn = self.zbus_neg.loc[k, bus].imag
+            Z0_kn = self.zbus_zero.loc[k, bus].imag
+
+            V1_k = v_prefault - I1 * Z1_kn
+            V2_k = -I2 * Z2_kn
+            V0_k = -I0 * Z0_kn
+
+            V0_bus[k] = V0_k
+            V1_bus[k] = V1_k
+            V2_bus[k] = V2_k
+            V_post[k] = V0_k + V1_k + V2_k
+
+        print("\nSequence voltages at each bus (real part):")
+        print(f"{'Bus':4s}  {'V0':>10s}  {'V1':>10s}  {'V2':>10s}")
+        for k in self.circuit.buses:
+            print(f"{k:4s}  {V0_bus[k].real:10.4f}  {V1_bus[k].real:10.4f}  {V2_bus[k].real:10.4f}")
+
+        print("\nPost‑fault Phase‑to‑Neutral voltages (real part):")
+        for k, Vk in V_post.items():
+            print(f"{k:4s}: {Vk.real:.4f} p.u.")
 
 
 if __name__ == "__main__":
@@ -288,6 +449,7 @@ if __name__ == "__main__":
     print(f"Bus1 type: {circuit1.buses['Bus1'].bus_type}")  # Should print "Slack Bus"
     print(f"Bus2 type: {circuit1.buses['Bus2'].bus_type}")  # Should print "PQ Bus"
     print(f"Bus7 type: {circuit1.buses['Bus7'].bus_type}")  # Should print "PV Bus"
+
 
     solution = Solution(circuit1)
 
