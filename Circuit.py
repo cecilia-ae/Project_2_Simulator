@@ -281,6 +281,7 @@ class Circuit:
             self.zbus_pos = pd.DataFrame(np.linalg.inv(self.ybus_pos.values), index=busnames, columns=busnames)
             self.zbus_neg = pd.DataFrame(np.linalg.inv(self.ybus_neg.values), index=busnames, columns=busnames)
             self.zbus_zero = pd.DataFrame(np.linalg.inv(self.ybus_zero.values), index=busnames, columns=busnames)
+
             return self.zbus_pos, self.zbus_neg, self.zbus_zero
         except np.linalg.LinAlgError:
             print("One of the Ybus matrices is singular and cannot be inverted.")
@@ -338,7 +339,7 @@ if __name__ == "__main__":
         circuit1.calc_sequence_zbuses()
 
         # Recalculate all sequence Ybuses and Zbuses
-
+        print("Ybus:\n", circuit1.ybus)
 
         print("Ybus Positive Sequence:\n", circuit1.ybus_pos)
         print("\nYbus Negative Sequence:\n", circuit1.ybus_neg)

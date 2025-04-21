@@ -12,7 +12,7 @@ class Load:
         self.name = name
         self.bus = bus
         self.real_power = real_power #MW
-        self.reactive_power = reactive_power #MVA
+        self.reactive_power = reactive_power #MVAR
 
         self.rated_voltage = bus.base_kv # in kV
         self.admittance = (self.real_power - 1j*self.reactive_power)/ (self.rated_voltage**2) # Not in per unit

@@ -73,7 +73,7 @@ class Solution:
                     p_specified += gen.mw_setpoint / SystemSettings.Sbase
 
             for load in self.circuit.loads.values():
-                if load.bus == bus_name:
+                if load.bus.name == bus_name:
                     p_specified -= load.real_power / SystemSettings.Sbase
 
             i = bus_index[bus_name]
@@ -92,7 +92,7 @@ class Solution:
                     q_specified += gen.mvar_setpoint / SystemSettings.Sbase
 
             for load in self.circuit.loads.values():
-                if load.bus == bus_name:
+                if load.bus.name == bus_name:
                     q_specified -= load.reactive_power / SystemSettings.Sbase
 
             i = bus_index[bus_name]
@@ -115,7 +115,6 @@ class Solution:
             from Jacobian import Jacobian
             J = Jacobian(self).calc_jacobian()
 
-
             # Step 3: solve for Δx
             try:
                 delta_x = np.linalg.solve(J, mismatches)
@@ -128,7 +127,7 @@ class Solution:
 
                 print("\nNEWTON-RAPHSON SOLUTION SUMMARY")
                 print("=" * 60)
-                print(f"\nConverged in {i+1} iterations")
+                print(f"\nConverged in {i + 1} iterations")
 
                 print("\nFinal Bus Angles (radians):")
                 for bus_name in self.circuit.buses:
@@ -192,7 +191,6 @@ class Solution:
                     print()
 
                 return True
-
 
             # Step 4: update x(i+1) = x(i) + Δx
             idx = 0
@@ -413,6 +411,7 @@ class Solution:
 
 
 if __name__ == "__main__":
+
     # create test circuit
     circuit1 = Circuit("Test Circuit")
 
@@ -463,4 +462,4 @@ if __name__ == "__main__":
 
 
 
-
+1
