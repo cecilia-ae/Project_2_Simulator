@@ -213,6 +213,16 @@ class Solution:
     def power_flow(self, tolerance=0.001, max_iterations=50):
         return self.newton_raphson(tolerance=tolerance, max_iterations=max_iterations)
 
+    def sequence_to_phase(self, V0, V1, V2):
+        a = np.exp(1j * 2 * np.pi / 3)
+        A = np.array([
+            [1, 1, 1],
+            [1, a**2, a],
+            [1, a, a**2]
+        ])
+        V_seq = np.array([V0, V1, V2])
+        return A @ V_seq  # returns [Va, Vb, Vc]
+
     def fault_study(self):
         print("\nFAULT ANALYSIS")
         print("=" * 60)
@@ -244,7 +254,7 @@ class Solution:
             print(f"Bus '{fault_bus}' not found in the system.")
             return
 
-        v_prefault = 1.0  # assume 1.0 p.u. prefault voltage
+        v_prefault = 1.0 + 0.0j # assume 1.0 p.u. prefault voltage
         Zf = 0 + 0j # assume a bolted fault
 
         if fault_type == "1":
@@ -260,154 +270,80 @@ class Solution:
 
     def perform_symmetrical_fault(self, bus, v_prefault):
         print("\n>>> Performing symmetrical 3-phase fault analysis")
-
-        if bus not in self.zbus_pos.keys():
-            raise ValueError(f"Fault bus {bus} not found in Zbus.")
-
         Znn = self.zbus_pos.loc[bus, bus]
-        if Znn == 0:
-            raise ZeroDivisionError("Znn is zero, can't compute fault current.")
-
         If = v_prefault / Znn
+        print(f"\nSubtransient fault current at {bus}: {abs(If):.4f} p.u. ∠{np.angle(If, deg=True):.2f}°")
 
-        print(f"\nSubtransient fault current at {bus}: "
-              f"{abs(If):.4f} ∠{np.angle(If, deg=True):.2f}° (in p.u.)")
-
-        voltages_after_fault = {}
-        for bus_k in self.zbus_pos.index:
-            Zkn = self.zbus_pos.loc[bus_k, bus]
-            Vk = (1 - Zkn/Znn) * v_prefault
-            voltages_after_fault[bus_k] = Vk
-            print(f"Post-fault voltage at {bus_k}: {abs(Vk):.4f} ∠{np.angle(Vk, deg=True):.2f}° (in p.u.)")
+        for k in self.zbus_pos.index:
+            Zkn = self.zbus_pos.loc[k, bus]
+            V1_k = v_prefault - Zkn * If
+            V0_k = 0
+            V2_k = 0
+            Va, _, _ = self.sequence_to_phase(V0_k, V1_k, V2_k)
+            print(f"Post-fault Phase A voltage at {k}: {abs(Va):.4f} p.u. ∠{np.angle(Va, deg=True):.2f}°")
 
     def perform_lg_fault(self, bus, v_prefault, Zf):
         print("\n>>> Performing line‑to‑ground (LG) fault analysis")
-
-        # Z self‑impedances of the faulted bus
         Z1_nn = self.zbus_pos.loc[bus, bus]
         Z2_nn = self.zbus_neg.loc[bus, bus]
         Z0_nn = self.zbus_zero.loc[bus, bus]
-
-        # Total fault impedance (including fault impedance Zf)
         Z_total = Z1_nn + Z2_nn + Z0_nn + 3 * Zf
-
-        # Fault current and sequence currents (with fault impedance Zf included)
-        I1 = I2 = I0  = v_prefault / Z_total
-        If = I1 + I2 + I0
-        print(f"\nSubtransient fault current at {bus}: {abs(If):.4f} ∠{np.angle(If, deg=True):.2f}° (in p.u.)")
-
-        V_post = {}  # Total phase‑to‑neutral voltages after the fault
-        V1_bus = {}
-        V2_bus = {}
-        V0_bus = {}
-
-        # Perform symmetrical component transformation for each bus
-        for k in self.circuit.buses:  # Iterate through each bus in the network
-            # Z of the faulted bus
-            Z1_kn = self.zbus_pos.loc[k, bus]
-            Z2_kn = self.zbus_neg.loc[k, bus]
-            Z0_kn = self.zbus_zero.loc[k, bus]
-
-            # Calculate sequence voltage contributions
-            V1_k = v_prefault - Z1_kn * I1
-            V2_k = -Z2_kn * I2
-            V0_k = -Z0_kn * I0
-
-            V1_bus[k] = V1_k
-            V2_bus[k] = V2_k
-            V0_bus[k] = V0_k
-            Vk = V0_k + V1_k + V2_k  # Phase voltage
-
-            V_post[k] = Vk
-
-            # Printing phase-to-neutral voltages (magnitude and phase angle)
-            print(f"Post-fault voltage at {k}: {abs(Vk):.4f} ∠{np.angle(Vk, deg=True):.2f}° (in p.u.)")
-
-
-
-    def perform_ll_fault(self, bus, v_prefault, Zf):
-        print("\n>>> Performing line‑to‑line fault analysis")
-
-        # Impedances of the faulted bus (Z1nn, Z2nn)
-        z1_nn = self.zbus_pos.loc[bus, bus]  # Z1nn
-        z2_nn = self.zbus_neg.loc[bus, bus]  # Z2nn
-
-        # Total fault impedance (including fault impedance Zf)
-        Z_total = z1_nn + z2_nn + Zf
-
-        # Fault current calculation
-        I1 = v_prefault / Z_total  # Sequence current
-        I2 = -I1
-        I0 = 0
-        If = np.sqrt(3) * I1  # Line current
-
-        print(f"\nSubtransient fault current at {bus}: {abs(If):.4f} ∠{np.angle(If, deg=True):.2f}° (in p.u.)")
-
-        V_post = {}  # Phase-A voltages after the fault
-
-        for k in self.circuit.buses:  # Iterate over bus names
-            Z1_kn = self.zbus_pos.loc[k, bus]  # Z1kn
-            Z2_kn = self.zbus_neg.loc[k, bus]  # Z2kn
-            Z0_nn = self.zbus_zero.loc[k, bus]   # Z0kn
-
-            # Sequence voltage contributions
-            V1_k = v_prefault - I1 * Z1_kn
-            V2_k = -I2 * Z2_kn
-            V0_k = -I0 * Z0_nn  # Zero sequence is 0 for LL fault
-
-            Vk = V0_k + V1_k + V2_k
-            V_post[k] = Vk
-
-            # Printing phase-to-neutral voltages
-            print(f"Post-fault voltage at {k}: {abs(Vk):.4f} ∠{np.angle(Vk, deg=True):.2f}° (in p.u.)")
-
-
-    def perform_llg_fault(self, bus, v_prefault, Zf):
-        print("\n>>> Performing double line-to-ground (LLG) fault analysis")
-
-        # Self-impedances at the faulted bus
-        Z1_nn = self.zbus_pos.loc[bus, bus]
-        Z2_nn = self.zbus_neg.loc[bus, bus]
-        Z0_nn = self.zbus_zero.loc[bus, bus]
-
-        # Total impedance for the fault (including fault impedance Zf)
-        Z_total1 = Z1_nn + ((Z2_nn * (Z0_nn + 3 * Zf)) / (Z2_nn + Z0_nn + 3 * Zf))
-        Z_total2 = (Z0_nn + 3 * Zf) / (Z2_nn + Z0_nn + 3 * Zf)
-        Z_total0 = (Z2_nn) / (Z2_nn + Z0_nn + 3 * Zf)
-
-        # Positive sequence fault current
-        I1 = v_prefault / Z_total1
-        I2 = -1 * I1 * Z_total2
-        I0 = -1 * I1 * Z_total0
-
-        If = np.sqrt(3) * I1
-
-        print(f"\nSubtransient fault current at {bus}: {abs(If):.4f} ∠{np.angle(If, deg=True):.2f}° (in p.u.)")
-
-        V_post = {}
-        V0_bus = {}
-        V1_bus = {}
-        V2_bus = {}
+        I1 = I2 = I0 = v_prefault / Z_total
+        Ia, _, _ = self.sequence_to_phase(I0, I1, I2)
+        print(f"Phase A fault current: {abs(Ia):.4f} p.u. ∠{np.angle(Ia, deg=True):.2f}°")
 
         for k in self.circuit.buses:
             Z1_kn = self.zbus_pos.loc[k, bus]
             Z2_kn = self.zbus_neg.loc[k, bus]
             Z0_kn = self.zbus_zero.loc[k, bus]
+            V1_k = v_prefault - Z1_kn * I1
+            V2_k = -Z2_kn * I2
+            V0_k = -Z0_kn * I0
+            Va, _, _ = self.sequence_to_phase(V0_k, V1_k, V2_k)
+            print(f"Post-fault Phase A voltage at {k}: {abs(Va):.4f} p.u. ∠{np.angle(Va, deg=True):.2f}°")
 
-            # Sequence voltage contributions
-            V1_k = v_prefault - I1 * Z1_kn
-            V2_k = -I2 * Z2_kn
-            V0_k = -I0 * Z0_kn
+    def perform_ll_fault(self, bus, v_prefault, Zf):
+        print("\n>>> Performing line‑to‑line fault analysis")
+        Z1_nn = self.zbus_pos.loc[bus, bus]
+        Z2_nn = self.zbus_neg.loc[bus, bus]
+        Z_total = Z1_nn + Z2_nn + Zf
+        I1 = v_prefault / Z_total
+        I2 = -I1
+        I0 = 0
+        Iab = np.sqrt(3) * I1
+        print(f"Line current between A and B (Iab): {abs(Iab):.4f} p.u. ∠{np.angle(Iab, deg=True):.2f}°")
 
-            V0_bus[k] = V0_k
-            V1_bus[k] = V1_k
-            V2_bus[k] = V2_k
+        for k in self.circuit.buses:
+            Z1_kn = self.zbus_pos.loc[k, bus]
+            Z2_kn = self.zbus_neg.loc[k, bus]
+            Z0_kn = self.zbus_zero.loc[k, bus]
+            V1_k = v_prefault - Z1_kn * I1
+            V2_k = -Z2_kn * I2
+            V0_k = 0
+            Va, _, _ = self.sequence_to_phase(V0_k, V1_k, V2_k)
+            print(f"Post-fault Phase A voltage at {k}: {abs(Va):.4f} p.u. ∠{np.angle(Va, deg=True):.2f}°")
 
-            Vk = V0_k + V1_k + V2_k
-            V_post[k] = Vk
+    def perform_llg_fault(self, bus, v_prefault, Zf):
+        print("\n>>> Performing double line-to-ground (LLG) fault analysis")
+        Z1_nn = self.zbus_pos.loc[bus, bus]
+        Z2_nn = self.zbus_neg.loc[bus, bus]
+        Z0_nn = self.zbus_zero.loc[bus, bus]
+        Z_total1 = Z1_nn + (Z2_nn * (Z0_nn + 3 * Zf)) / (Z2_nn + Z0_nn + 3 * Zf)
+        I1 = v_prefault / Z_total1
+        I2 = -I1 * (Z0_nn + 3 * Zf) / (Z2_nn + Z0_nn + 3 * Zf)
+        I0 = -I1 * (Z2_nn) / (Z2_nn + Z0_nn + 3 * Zf)
+        Iab = np.sqrt(3) * I1
+        print(f"Line current between A and B (Iab): {abs(Iab):.4f} p.u ∠{np.angle(Iab, deg=True):.2f}°")
 
-            # Printing phase-to-neutral voltages
-            print(f"Post-fault voltage at {k}: {abs(Vk):.4f} ∠{np.angle(Vk, deg=True):.2f}° (in p.u.)")
+        for k in self.circuit.buses:
+            Z1_kn = self.zbus_pos.loc[k, bus]
+            Z2_kn = self.zbus_neg.loc[k, bus]
+            Z0_kn = self.zbus_zero.loc[k, bus]
+            V1_k = v_prefault - Z1_kn * I1
+            V2_k = -Z2_kn * I2
+            V0_k = -Z0_kn * I0
+            Va, _, _ = self.sequence_to_phase(V0_k, V1_k, V2_k)
+            print(f"Post-fault Phase A voltage at {k}: {abs(Va):.4f} p.u ∠{np.angle(Va, deg=True):.2f}°")
 
 
 if __name__ == "__main__":
@@ -436,13 +372,13 @@ if __name__ == "__main__":
     circuit1.add_tline("Line5", "Bus5", "Bus6", "Bundle1", "Geometry1", 10)
     circuit1.add_tline("Line6", "Bus4", "Bus5", "Bundle1", "Geometry1", 35)
 
-    # ADD TRANSFORMERS
-    circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10, "y-y", 0.05)
-    circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12, "y-y", 0.05)
+    # ADD TRANSMORMERS
+    circuit1.add_transformer("T1", "Bus1", "Bus2", 125, 8.5, 10, "delta-y", 1)
+    circuit1.add_transformer("T2", "Bus6", "Bus7", 200, 10.5, 12, "delta-y", 999999)
 
     # ADD GENERATORS
-    circuit1.add_generator("G1", "Bus1", 20, 100, 0.05, True)
-    circuit1.add_generator("G2", "Bus7", 18, 200, 0.05, True)
+    circuit1.add_generator("G1", "Bus1", 20, 100, 0, True)
+    circuit1.add_generator("G2", "Bus7", 18, 200, 1, True)
 
     # ADD LOAD
     circuit1.add_load("L1", "Bus3", 110, 50)
@@ -460,6 +396,3 @@ if __name__ == "__main__":
 
     solution.fault_study()
 
-
-
-1
