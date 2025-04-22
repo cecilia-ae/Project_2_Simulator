@@ -1,0 +1,209 @@
+@startuml
+
+class Bus {
+    +name: str
+    +base_kv: float
+    +vpu: float
+    +delta: float
+    +bus_type: str
+    +index: int
+}
+
+class Transformer {
+    +name: str
+    +bus1: Bus
+    +bus2: Bus
+    +power_rating: float
+    +impedance_percent: float
+    +x_over_r_ratio: float
+    +connection_type: str
+    +grounding_impedance: float
+    +Rpusys: float
+    +Xpusys: float
+    +Yseries: complex
+    +yprim: matrix
+    +yprim_neg: matrix
+    +yprim_zero: matrix
+    + calc_impedance(): void
+    + calc_admittance(): void
+    + calc_yprim(): void
+    + calc_yprim_negative(): void
+    + calc_yprim_zero(): void
+}
+
+class Conductor {
+    +name: str
+    +diam: float
+    +gmr: float
+    +resistance: float
+    +ampacity: float
+}
+
+class Bundle {
+    +name: str
+    +num_conductors: int
+    +spacing: float
+    +conductor: Conductor
+    +dsc: float
+    +dsl: float
+    + calc_dsc(): float
+    + calc_dsl(): float
+}
+
+class Geometry {
+    +name: str
+    +xa: float
+    +ya: float
+    +xb: float
+    +yb: float
+    +xc: float
+    +yc: float
+    +Deq: float
+    + calc_Deq(): float
+}
+
+class TransmissionLine {
+    +name: str
+    +bus1: Bus
+    +bus2: Bus
+    +bundle: Bundle
+    +geometry: Geometry
+    +length: float
+    +zbase: float
+    +ybase: float
+    +Rpu: float
+    +Xpu: float
+    +Bpu: float
+    +R2pu: float
+    +X2pu: float
+    +B2pu: float
+    +R0pu: float
+    +X0pu: float
+    +B0pu: float
+    +yprim: matrix
+    +yprim_neg: matrix
+    +yprim_zero: matrix
+    + calc_base_values(): void
+    + calc_Rpu(): float
+    + calc_Xpu(): float
+    + calc_Bpu(): float
+    + calc_yprim(): matrix
+    + calc_yprim_negative_sequence(): matrix
+    + calc_yprim_zero_sequence(): matrix
+}
+
+class Load {
+    +name: str
+    +bus: Bus
+    +real_power: float
+    +reactive_power: float
+    +rated_voltage: float
+    +admittance: complex
+    +ybase: float
+    +y_pu: complex
+    + y_prim(): matrix
+}
+
+class Generator {
+    +name: str
+    +bus: Bus
+    +voltage_setpoint: float
+    +mw_setpoint: float
+    +x1: float
+    +x2: float
+    +x0: float
+    +Zn: float
+    +is_grounded: bool
+    + y_prim_positive_sequence(): matrix
+    + y_prim_negative_sequence(): matrix
+    + y_prim_zero_sequence(): matrix
+}
+
+class Circuit {
+    +name: str
+    +buses: dict
+    +transformers: dict
+    +conductors: dict
+    +bundles: dict
+    +geometries: dict
+    +transmissionlines: dict
+    +generators: dict
+    +loads: dict
+    +slack_bus: str
+    +ybus: matrix
+    +ybus_pos: matrix
+    +ybus_neg: matrix
+    +ybus_zero: matrix
+    +zbus_pos: matrix
+    +zbus_neg: matrix
+    +zbus_zero: matrix
+    + add_bus(): void
+    + add_transformer(): void
+    + add_conductor(): void
+    + add_bundle(): void
+    + add_geometry(): void
+    + add_tline(): void
+    + add_generator(): void
+    + add_load(): void
+    + set_slack_bus(): void
+    + calc_ybus(): matrix
+    + calc_ybus_pos_sequence(): matrix
+    + calc_ybus_neg_sequence(): matrix
+    + calc_ybus_zero_sequence(): matrix
+    + calc_sequence_zbuses(): void
+}
+
+class Solution {
+    +circuit: Circuit
+    +ybus: matrix
+    +voltages: dict
+    +angles: dict
+    + get_voltages(): dict
+    + compute_power_injection(): void
+    + compute_power_mismatch(): void
+    + newton_raphson(tolerance: float, max_iterations: int): bool
+    + power_flow(tolerance: float, max_iterations: int): bool
+    + fault_study(): void
+    + perform_symmetrical_fault(bus: str, v_prefault: float): void
+    + perform_lg_fault(bus: str, v_prefault: float, Zf: float): void
+    + perform_ll_fault(bus: str, v_prefault: float, Zf: float): void
+    + perform_llg_fault(bus: str, v_prefault: float, Zf: float): void
+}
+
+class Jacobian {
+    +solution: Solution
+    +ybus: matrix
+    +voltages: dict
+    +angles: dict
+    +buses: dict
+    + calc_j1(): matrix
+    + calc_j2(): matrix
+    + calc_j3(): matrix
+    + calc_j4(): matrix
+    + calc_jacobian(): matrix
+}
+
+class SystemSettings {
+    +Sbase: float = 100
+    +f: float = 60
+    +ε_0: float = 8.854e-12
+}
+
+Transformer "1" --> "2" Bus: contains
+TransmissionLine "1" --> "2" Bus: contains
+TransmissionLine "1" --> "1" Bundle: contains
+TransmissionLine "1" --> "1" Geometry: contains
+Bundle "1" --> "1" Conductor: contains
+Load "1" --> "1" Bus: contains
+Generator "1" --> "1" Bus: contains
+Solution "1" --> "1" Circuit: contains
+Solution "1" --> "1" Jacobian: utilizes
+Circuit "1" --> "many" Bus : contains
+Circuit "1" --> "many" TransmissionLine: contains
+Circuit "1" --> "many" Load: contains
+Circuit "1" --> "many" Generator: contains
+Circuit "1" --> "many" Transformer: contains
+
+@enduml
+
+
