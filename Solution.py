@@ -274,14 +274,18 @@ class Solution:
         If = v_prefault / Znn
         print(f"\nSubtransient fault current at {bus}: {abs(If):.4f} p.u. ∠{np.angle(If, deg=True):.2f}°")
 
+        voltages_abc = {}
+        
         for k in self.zbus_pos.index:
             Zkn = self.zbus_pos.loc[k, bus]
             V1_k = v_prefault - Zkn * If
             V0_k = 0
             V2_k = 0
-            Va, _, _ = self.sequence_to_phase(V0_k, V1_k, V2_k)
-            print(f"Post-fault Phase A voltage at {k}: {abs(Va):.4f} p.u. ∠{np.angle(Va, deg=True):.2f}°")
+           Va, Vb, Vc = self.sequence_to_phase(V0_k, V1_k, V2_k)
+            voltages_abc[k] = (Va, Vb, Vc)
 
+        self.print_fault_voltage_table("Three-Phase Fault", voltages_abc)
+        
     def perform_lg_fault(self, bus, v_prefault, Zf):
         print("\n>>> Performing line‑to‑ground (LG) fault analysis")
         Z1_nn = self.zbus_pos.loc[bus, bus]
@@ -292,6 +296,8 @@ class Solution:
         Ia, _, _ = self.sequence_to_phase(I0, I1, I2)
         print(f"Phase A fault current: {abs(Ia):.4f} p.u. ∠{np.angle(Ia, deg=True):.2f}°")
 
+        voltages_abc = {}
+        
         for k in self.circuit.buses:
             Z1_kn = self.zbus_pos.loc[k, bus]
             Z2_kn = self.zbus_neg.loc[k, bus]
@@ -299,9 +305,11 @@ class Solution:
             V1_k = v_prefault - Z1_kn * I1
             V2_k = -Z2_kn * I2
             V0_k = -Z0_kn * I0
-            Va, _, _ = self.sequence_to_phase(V0_k, V1_k, V2_k)
-            print(f"Post-fault Phase A voltage at {k}: {abs(Va):.4f} p.u. ∠{np.angle(Va, deg=True):.2f}°")
+            Va, Vb, Vc = self.sequence_to_phase(V0_k, V1_k, V2_k)
+            voltages_abc[k] = (Va, Vb, Vc)
 
+        self.print_fault_voltage_table("Three-Phase Fault", voltages_abc)
+        
     def perform_ll_fault(self, bus, v_prefault, Zf):
         print("\n>>> Performing line‑to‑line fault analysis")
         Z1_nn = self.zbus_pos.loc[bus, bus]
@@ -313,6 +321,8 @@ class Solution:
         Iab = np.sqrt(3) * I1
         print(f"Line current between A and B (Iab): {abs(Iab):.4f} p.u. ∠{np.angle(Iab, deg=True):.2f}°")
 
+        voltages_abc = {}
+        
         for k in self.circuit.buses:
             Z1_kn = self.zbus_pos.loc[k, bus]
             Z2_kn = self.zbus_neg.loc[k, bus]
@@ -320,9 +330,11 @@ class Solution:
             V1_k = v_prefault - Z1_kn * I1
             V2_k = -Z2_kn * I2
             V0_k = 0
-            Va, _, _ = self.sequence_to_phase(V0_k, V1_k, V2_k)
-            print(f"Post-fault Phase A voltage at {k}: {abs(Va):.4f} p.u. ∠{np.angle(Va, deg=True):.2f}°")
+            Va, Vb, Vc = self.sequence_to_phase(V0_k, V1_k, V2_k)
+            voltages_abc[k] = (Va, Vb, Vc)
 
+        self.print_fault_voltage_table("Three-Phase Fault", voltages_abc)
+    
     def perform_llg_fault(self, bus, v_prefault, Zf):
         print("\n>>> Performing double line-to-ground (LLG) fault analysis")
         Z1_nn = self.zbus_pos.loc[bus, bus]
@@ -335,6 +347,8 @@ class Solution:
         Iab = np.sqrt(3) * I1
         print(f"Line current between A and B (Iab): {abs(Iab):.4f} p.u ∠{np.angle(Iab, deg=True):.2f}°")
 
+        voltages_abc = {}
+
         for k in self.circuit.buses:
             Z1_kn = self.zbus_pos.loc[k, bus]
             Z2_kn = self.zbus_neg.loc[k, bus]
@@ -342,9 +356,23 @@ class Solution:
             V1_k = v_prefault - Z1_kn * I1
             V2_k = -Z2_kn * I2
             V0_k = -Z0_kn * I0
-            Va, _, _ = self.sequence_to_phase(V0_k, V1_k, V2_k)
-            print(f"Post-fault Phase A voltage at {k}: {abs(Va):.4f} p.u ∠{np.angle(Va, deg=True):.2f}°")
+            Va, Vb, Vc = self.sequence_to_phase(V0_k, V1_k, V2_k)
+            voltages_abc[k] = (Va, Vb, Vc)
 
+        self.print_fault_voltage_table("Three-Phase Fault", voltages_abc)
+
+    def print_fault_voltage_table(self, fault_type, voltages_abc):
+        print(f"\n--- Post-Fault Voltages for {fault_type} ---")
+        header = f"{'Bus':<10} {'Va (p.u.)':<25} {'Vb (p.u.)':<25} {'Vc (p.u.)':<25}"
+        print(header)
+        print("-" * len(header))
+
+        for bus, (va, vb, vc) in voltages_abc.items():
+            line = f"{bus:<10} {abs(va):.4f} ∠ {np.angle(va, deg=True):6.2f}°   " \
+                   f"{abs(vb):.4f} ∠ {np.angle(vb, deg=True):6.2f}°   " \
+                   f"{abs(vc):.4f} ∠ {np.angle(vc, deg=True):6.2f}°"
+            print(line)
+            print("-" * len(header))
 
 if __name__ == "__main__":
 
